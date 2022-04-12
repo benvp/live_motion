@@ -46,27 +46,28 @@ defmodule LiveMotion.JS do
 
   ## Example
 
-    def popcorn(assigns) do
-      ~H"""
-      <div>
-        <div id="popcorn" style="font-size: 64px">
-          <span>🍿</span>
-        </div>
+      def popcorn(assigns) do
+        ~H"""
+        <div>
+          <div id="popcorn" style="font-size: 64px">
+            <span>🍿</span>
+          </div>
 
-        <button
-          type="button"
-          phx-click={
-            LiveMotion.JS.animate(
-              [rotate: [0, 20, -10, 30, -10, 0]],
-              [duration: 0.5],
-              to: "#popcorn"
-            )
-          }
-        >
-          Shake it!
-        </button>
-      </div>
-      """
+          <button
+            type="button"
+            phx-click={
+              LiveMotion.JS.animate(
+                [rotate: [0, 20, -10, 30, -10, 0]],
+                [duration: 0.5],
+                to: "#popcorn"
+              )
+            }
+          >
+            Shake it!
+          </button>
+        </div>
+        """
+      end
 
   ## Options
 
@@ -84,30 +85,31 @@ defmodule LiveMotion.JS do
 
   ## Example
 
-    def popcorn(assigns) do
-      ~H"""
-      <div>
-        <div id="popcorn" style="font-size: 64px">
-          <span>🍿</span>
-        </div>
+      def popcorn(assigns) do
+        ~H"""
+        <div>
+          <div id="popcorn" style="font-size: 64px">
+            <span>🍿</span>
+          </div>
 
-        <button
-          type="button"
-          phx-click={
-            LiveMotion.JS.toggle(
-              [
-                in: [x: -200],
-                out: [x: 200]
-              ],
-              [],
-              to: "#popcorn"
-            )
-          }
-        >
-          Move popcorn
-        </button>
-      </div>
-      """
+          <button
+            type="button"
+            phx-click={
+              LiveMotion.JS.toggle(
+                [
+                  in: [x: -200],
+                  out: [x: 200]
+                ],
+                [],
+                to: "#popcorn"
+              )
+            }
+          >
+            Move popcorn
+          </button>
+        </div>
+        """
+      end
 
   ## Options
 
