@@ -23,7 +23,7 @@ Add the `live_motion` dependency to your `mix.exs` file.
 ```elixir
 def deps do
   [
-    {:live_motion, "~> 0.1.0"}
+    {:live_motion, "~> 0.1.1"}
   ]
 end
 ```

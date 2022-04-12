@@ -178,7 +178,7 @@ defmodule LiveMotion do
       id={@id}
       phx-hook="Motion"
       data-motion={animate(@animate, @transition, @exit)}
-      phx-remove={LiveMotion.JS.hide(to: @id)}
+      phx-remove={LiveMotion.JS.hide(to: "##{@id}")}
       style={@style}
       {@rest}
     >

@@ -892,7 +892,7 @@ var LiveMotion = (() => {
     window.addEventListener("live_motion:hide", (e) => {
       var _a;
       const target = e.target;
-      if ((_a = e.detail) == null ? void 0 : _a.keyframes) {
+      if (((_a = e.detail) == null ? void 0 : _a.keyframes) && Object.keys(e.detail.keyframes).length > 0) {
         const { keyframes, transition } = e.detail;
         const duration = getDuration(transition);
         liveSocket.transition(duration, () => {
