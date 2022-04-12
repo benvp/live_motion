@@ -1,0 +1,25 @@
+{
+  "name": "live_motion",
+  "version": "0.1.0",
+  "description": "The LiveMotion JavaScript client.",
+  "license": "MIT",
+  "private": true,
+  "module": "./priv/static/live_motion.esm.js",
+  "main": "./priv/static/live_motion.cjs.js",
+  "exports": {
+    "import": "./priv/static/live_motion.esm.js",
+    "require": "./priv/static/live_motion.cjs.js"
+  },
+  "author": "Benjamin von Polheim <hi@benvp.co> (https://benvp.co)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benvp/live_motion.git"
+  },
+  "files": [
+    "README.md",
+    "LICENSE.md",
+    "package.json",
+    "priv/static/*",
+    "assets/js/live_motion/*"
+  ]
+}
