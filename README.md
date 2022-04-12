@@ -2,6 +2,10 @@
 
 LiveMotion enables high performance animations declared on the server and run on the client.
 
+## Documentation
+
+You can find the full API documentation on [hexdocs.pm/live_motion](https://hexdocs.pm/live_motion/LiveMotion.html)
+
 ## Features
 
 - Define animations declaratively directly in your HEEX templates. No definition of CSS
@@ -62,20 +66,18 @@ If you are using node and have npm or yarn installed, one additional step is req
 <details>
   <summary>Show Instructions for npm / yarn</summary>
 
-We need to add the JS part as a dependency to our package.json file. From the root directory of your project, run the following command.
+We need to add the JS part as a dependency to our package.json file. Add this to your package.json
+file.
 
-If you are using npm:
-
-```bash
-npm install --prefix assets --save ../deps/live_motion
+```json
+{
+  "dependencies": {
+    "live_motion": "file:../deps/live_motion"
+  }
+}
 ```
 
-If you are using yarn:
-
-```bash
-yarn add --cwd assets file:../deps/live_motion
-```
-
+Don't forget to run `npm install` or `yarn` afterwards.
 </details>
 
 ### Roadmap
