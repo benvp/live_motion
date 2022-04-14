@@ -823,17 +823,25 @@ var doAnimation = (el, config) => {
     return animate2(el, keyframes, transition);
   }
 };
+var performTransition = (target, duration, config) => new Promise((resolve, reject) => {
+  liveSocket.transition(duration, () => {
+    doAnimation(target, config).finished.then(resolve).catch(reject);
+  });
+});
 function createMotionHook() {
   return {
     Motion: {
       getConfig() {
         return this.el.dataset.motion ? JSON.parse(this.el.dataset.motion) : void 0;
       },
-      animate() {
-        doAnimation(this.el, this.getConfig() || {});
+      maybeAnimate() {
+        const config = this.getConfig() || {};
+        if (!config.defer) {
+          doAnimation(this.el, config);
+        }
       },
       mounted() {
-        this.animate();
+        this.maybeAnimate();
       },
       updated() {
         this.animate();
@@ -860,17 +868,33 @@ function createLiveMotion() {
     if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
       const { keyframes, transition } = e.detail;
       const duration = getDuration(transition);
-      liveSocket.transition(duration, () => {
-        doAnimation(target, { keyframes, transition }).finished.then(() => target.style.display = "none");
-      });
+      performTransition(target, duration, { keyframes, transition }).then(() => target.style.display = "none");
     } else {
+      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
+        console.warn("[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?");
+      }
       const { exit, transition } = JSON.parse(target.dataset.motion);
       if (exit) {
         const duration = getDuration(transition);
-        liveSocket.transition(duration, () => {
-          doAnimation(target, { keyframes: exit, transition }).finished.then(() => target.style.display = "none");
-        });
+        performTransition(target, duration, { keyframes: exit, transition }).then(() => target.style.display = "none");
       }
+    }
+  });
+  window.addEventListener("live_motion:show", (e) => {
+    const target = e.target;
+    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+      const { keyframes, transition, display } = e.detail;
+      const duration = getDuration(transition);
+      target.style.display = display;
+      performTransition(target, duration, { keyframes, transition });
+    } else {
+      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
+        console.warn("[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?");
+      }
+      const { keyframes, transition } = JSON.parse(target.dataset.motion);
+      const duration = getDuration(transition);
+      target.style.display = e.detail.display;
+      performTransition(target, duration, { keyframes, transition });
     }
   });
   window.addEventListener("live_motion:toggle", (e) => {

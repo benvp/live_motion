@@ -106,6 +106,9 @@ defmodule LiveMotion do
   - `exit`: The target animation to animate to when the component is unmounted. Accepts
   the same options as `animate` does.
 
+  - `defer`: If set, will defer the animation until it's somehow manually triggered. Use
+  in combination with `LiveMotion.JS.show/1`.
+
 
   ## Keyframe
 
@@ -152,7 +155,7 @@ defmodule LiveMotion do
   You need to pass the options as a Keyword list and in snake case.
   '''
   def motion(assigns) do
-    rest = assigns_to_attributes(assigns, [:animate, :transition, :initial, :exit])
+    rest = assigns_to_attributes(assigns, [:animate, :transition, :initial, :exit, :defer])
 
     initial =
       case assigns[:initial] do
@@ -170,6 +173,7 @@ defmodule LiveMotion do
       |> assign_new(:animate, fn -> [] end)
       |> assign_new(:transition, fn -> [] end)
       |> assign_new(:exit, fn -> [] end)
+      |> assign_new(:defer, fn -> false end)
       |> assign(:style, initial)
       |> assign(:rest, rest)
 
@@ -177,7 +181,7 @@ defmodule LiveMotion do
     <div
       id={@id}
       phx-hook="Motion"
-      data-motion={animate(@animate, @transition, @exit)}
+      data-motion={animate(@animate, @transition, @exit, @defer)}
       phx-remove={LiveMotion.JS.hide(to: "##{@id}")}
       style={@style}
       {@rest}
@@ -187,11 +191,12 @@ defmodule LiveMotion do
     """
   end
 
-  defp animate(keyframes, transition, exit_keyframes) do
+  defp animate(keyframes, transition, exit_keyframes, defer) do
     %Motion{
       keyframes: Enum.into(keyframes, %{}),
       transition: Enum.into(transition, %{}),
-      exit: Enum.into(exit_keyframes, %{})
+      exit: Enum.into(exit_keyframes, %{}),
+      defer: defer
     }
     |> translate_easing()
   end

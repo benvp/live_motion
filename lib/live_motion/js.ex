@@ -145,8 +145,8 @@ defmodule LiveMotion.JS do
 
     * `to` - The query selector on which element to perform the animation.
       If the option is not provided, the target element will be used.
-    * `keyframes` - The keyframe keyword list defining the animations.
-    * `transition` - Transition options.
+    * `keyframes` - The optional keyframe keyword list defining the animations.
+    * `transition` - The optional transition options.
 
   """
   def hide(opts \\ []) do
@@ -156,6 +156,36 @@ defmodule LiveMotion.JS do
     opts = Keyword.merge(opts, detail: build_dispatch_detail(keyframes, transition))
 
     JS.dispatch("live_motion:hide", opts)
+  end
+
+  @doc """
+  Shows an element and triggers the animation defined on the target.
+
+  Additionally allows `keyframes` and `transition` to be defined. These will be used
+  to animate the target element and therefore the target does not require to be a
+  `LiveMotion.motion` component.
+
+  ## Options
+
+    * `to` - The query selector on which element to perform the animation.
+      If the option is not provided, the target element will be used.
+    * `keyframes` - The optional keyframe keyword list defining the animations.
+    * `transition` - The optional transition options.
+    * `display` - The optional display value to set when showing. Defaults to "block".
+
+  """
+  def show(opts \\ []) do
+    {keyframes, opts} = Keyword.pop(opts, :keyframes, [])
+    {transition, opts} = Keyword.pop(opts, :transition, [])
+    {display, opts} = Keyword.pop(opts, :display, "block")
+
+    detail =
+      build_dispatch_detail(keyframes, transition)
+      |> Map.put_new(:display, display)
+
+    opts = Keyword.merge(opts, detail: detail)
+
+    JS.dispatch("live_motion:show", opts)
   end
 
   defp build_dispatch_detail(keyframes, transition) do

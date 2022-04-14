@@ -18,17 +18,34 @@ const doAnimation = (el, config) => {
   }
 };
 
+const performTransition = (target, duration, config) =>
+  new Promise((resolve, reject) => {
+    // TODO: check if there is a better way than relying on the global
+    // liveSocket variable.
+    liveSocket.transition(duration, () => {
+      // resolving with the controls does not work as controls
+      // is a Proxy and then something within motion fails.
+      // For now, we only resolve when the animation finishes
+      // or reject if it cancels.
+      doAnimation(target, config).finished.then(resolve).catch(reject);
+    });
+  });
+
 function createMotionHook() {
   return {
     Motion: {
       getConfig() {
         return this.el.dataset.motion ? JSON.parse(this.el.dataset.motion) : undefined;
       },
-      animate() {
-        doAnimation(this.el, this.getConfig() || {});
+      maybeAnimate() {
+        const config = this.getConfig() || {};
+
+        if (!config.defer) {
+          doAnimation(this.el, config);
+        }
       },
       mounted() {
-        this.animate();
+        this.maybeAnimate();
       },
       updated() {
         this.animate();
@@ -66,26 +83,52 @@ export function createLiveMotion() {
       const { keyframes, transition } = e.detail;
       const duration = getDuration(transition);
 
-      liveSocket.transition(duration, () => {
-        doAnimation(target, { keyframes, transition }).finished.then(
-          () => (target.style.display = 'none'),
-        );
-      });
+      performTransition(target, duration, { keyframes, transition }).then(
+        () => (target.style.display = 'none'),
+      );
     } else {
       // infer params from target
+      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
+        console.warn(
+          '[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?',
+        );
+      }
+
       const { exit, transition } = JSON.parse(target.dataset.motion);
 
       if (exit) {
         const duration = getDuration(transition);
 
-        // TODO: check if there is a better way than relying on the global
-        // liveSocket variable.
-        liveSocket.transition(duration, () => {
-          doAnimation(target, { keyframes: exit, transition }).finished.then(
-            () => (target.style.display = 'none'),
-          );
-        });
+        performTransition(target, duration, { keyframes: exit, transition }).then(
+          () => (target.style.display = 'none'),
+        );
       }
+    }
+  });
+
+  window.addEventListener('live_motion:show', (e) => {
+    const target = e.target;
+
+    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+      // params given
+      const { keyframes, transition, display } = e.detail;
+      const duration = getDuration(transition);
+
+      target.style.display = display;
+      performTransition(target, duration, { keyframes, transition });
+    } else {
+      // infer params from target
+      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
+        console.warn(
+          '[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?',
+        );
+      }
+
+      const { keyframes, transition } = JSON.parse(target.dataset.motion);
+      const duration = getDuration(transition);
+
+      target.style.display = e.detail.display;
+      performTransition(target, duration, { keyframes, transition });
     }
   });
 
