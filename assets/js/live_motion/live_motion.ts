@@ -1,9 +1,17 @@
 import { animate, spring } from 'motion';
+import {
+  LiveMotionAnimateEvent,
+  LiveMotionConfig,
+  LiveMotionHideEvent,
+  LiveMotionHooksDefinition,
+  LiveMotionShowEvent,
+  LiveMotionToggleEvent,
+} from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
 const DEFAULT_TRANSITION_DURATION = 300;
 
-const doAnimation = (el, config) => {
+const doAnimation = (el: HTMLElement, config: Omit<LiveMotionConfig, 'opts'>) => {
   const { keyframes, transition } = config;
 
   if (transition?.__easing?.[0] === 'spring') {
@@ -18,7 +26,11 @@ const doAnimation = (el, config) => {
   }
 };
 
-const performTransition = (target, duration, config) =>
+const performTransition = (
+  target: HTMLElement,
+  duration: number,
+  config: Omit<LiveMotionConfig, 'opts'>,
+) =>
   new Promise((resolve, reject) => {
     // TODO: check if there is a better way than relying on the global
     // liveSocket variable.
@@ -31,16 +43,15 @@ const performTransition = (target, duration, config) =>
     });
   });
 
-function createMotionHook() {
+function createMotionHook(): LiveMotionHooksDefinition {
   return {
     Motion: {
       getConfig() {
-        return this.el.dataset.motion ? JSON.parse(this.el.dataset.motion) : undefined;
+        return getMotionConfig(this.el);
       },
       maybeAnimate() {
-        const config = this.getConfig() || {};
-
-        if (!config.defer) {
+        const config = this.getConfig();
+        if (config && !config?.opts.defer) {
           doAnimation(this.el, config);
         }
       },
@@ -48,13 +59,13 @@ function createMotionHook() {
         this.maybeAnimate();
       },
       updated() {
-        this.animate();
+        this.maybeAnimate();
       },
     },
   };
 }
 
-function handleMotionUpdates(from, to) {
+function handleMotionUpdates(from: HTMLElement, to: HTMLElement) {
   /**
    * We need to copy over the style attribute because otherwise
    * each dom patch would reset the styles, resulting in
@@ -64,26 +75,33 @@ function handleMotionUpdates(from, to) {
     if (from.getAttribute('style') === null) {
       to.removeAttribute('style');
     } else {
-      to.setAttribute('style', from.getAttribute('style'));
+      to.setAttribute('style', from.getAttribute('style') as string);
     }
   }
 }
 
 export function createLiveMotion() {
   window.addEventListener('live_motion:animate', (e) => {
-    const { keyframes, transition } = e.detail || {};
-    doAnimation(e.target, { keyframes, transition });
+    const { target, detail } = e as LiveMotionAnimateEvent;
+
+    if (detail && target) {
+      const { keyframes, transition } = detail || {};
+
+      if (target) {
+        doAnimation(target, { keyframes, transition });
+      }
+    }
   });
 
   window.addEventListener('live_motion:hide', (e) => {
-    const target = e.target;
+    const { target, detail } = e as LiveMotionHideEvent;
 
-    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+    if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
       // params given
-      const { keyframes, transition } = e.detail;
+      const { keyframes, transition } = detail;
       const duration = getDuration(transition);
 
-      performTransition(target, duration, { keyframes, transition }).then(
+      performTransition(target as HTMLElement, duration, { keyframes, transition }).then(
         () => (target.style.display = 'none'),
       );
     } else {
@@ -94,7 +112,7 @@ export function createLiveMotion() {
         );
       }
 
-      const { exit, transition } = JSON.parse(target.dataset.motion);
+      const { exit, transition } = getMotionConfig(target);
 
       if (exit) {
         const duration = getDuration(transition);
@@ -107,11 +125,11 @@ export function createLiveMotion() {
   });
 
   window.addEventListener('live_motion:show', (e) => {
-    const target = e.target;
+    const { target, detail } = e as LiveMotionShowEvent;
 
-    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+    if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
       // params given
-      const { keyframes, transition, display } = e.detail;
+      const { keyframes, transition, display } = detail;
       const duration = getDuration(transition);
 
       target.style.display = display;
@@ -124,25 +142,34 @@ export function createLiveMotion() {
         );
       }
 
-      const { keyframes, transition } = JSON.parse(target.dataset.motion);
+      const { keyframes, transition } = getMotionConfig(target);
       const duration = getDuration(transition);
 
-      target.style.display = e.detail.display;
+      if (detail) {
+        target.style.display = detail.display;
+      }
+
       performTransition(target, duration, { keyframes, transition });
     }
   });
 
   window.addEventListener('live_motion:toggle', (e) => {
-    const { keyframes, transition } = e.detail || {};
-    const toggle = e.target.dataset.motionToggle === 'true';
+    const { target, detail } = e as LiveMotionToggleEvent;
 
-    const kf = !keyframes.in || !keyframes.out ? keyframes : toggle ? keyframes.in : keyframes.out;
-    const t =
-      !transition.in || !transition.out ? transition : toggle ? transition.in : transition.out;
+    if (detail) {
+      const { keyframes, transition } = detail;
 
-    doAnimation(e.target, { keyframes: kf, transition: t });
+      const toggle = target.dataset.motionToggle === 'true';
 
-    e.target.dataset.motionToggle = !toggle;
+      const kf =
+        !keyframes.in || !keyframes.out ? keyframes : toggle ? keyframes.in : keyframes.out;
+      const t =
+        !transition.in || !transition.out ? transition : toggle ? transition.in : transition.out;
+
+      doAnimation(target, { keyframes: kf, transition: t });
+
+      target.dataset.motionToggle = String(!toggle);
+    }
   });
 
   return {
@@ -151,7 +178,7 @@ export function createLiveMotion() {
   };
 }
 
-function getDuration(transition) {
+function getDuration(transition: LiveMotionConfig['transition']) {
   // As spring animations do not have any duration and the duration
   // can not be calculated, we have to fall back to the maximum of 10 seconds.
   // The element, however, will be hidden as soon as the animation finishes.
@@ -162,4 +189,8 @@ function getDuration(transition) {
     : typeof transition?.duration !== 'undefined'
     ? transition.duration * 1000
     : DEFAULT_TRANSITION_DURATION;
+}
+
+function getMotionConfig(el: HTMLElement) {
+  return el.dataset.motion ? JSON.parse(el.dataset.motion) : undefined;
 }

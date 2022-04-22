@@ -1,12 +1,42 @@
 var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __markAsModule = (target) => __defProp(target, "__esModule", { value: true });
+var __objRest = (source, exclude) => {
+  var target = {};
+  for (var prop in source)
+    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
+      target[prop] = source[prop];
+  if (source != null && __getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(source)) {
+      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+        target[prop] = source[prop];
+    }
+  return target;
+};
 var __export = (target, all) => {
   __markAsModule(target);
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// js/live_motion/index.js
+// js/live_motion/index.ts
 __export(exports, {
   createLiveMotion: () => createLiveMotion
 });
@@ -808,17 +838,19 @@ function animate2(target, keyframesOrOptions, options) {
   return animationFunction(target, keyframesOrOptions, options);
 }
 
-// js/live_motion/live_motion.js
+// js/live_motion/live_motion.ts
 var MAX_TRANSITION_DURATION = 10 * 1e3;
 var DEFAULT_TRANSITION_DURATION = 300;
 var doAnimation = (el, config) => {
+  var _a;
   const { keyframes, transition } = config;
-  if (transition?.__easing?.[0] === "spring") {
-    const {
-      __easing: [_, options],
-      ...t
-    } = transition;
-    return animate2(el, keyframes, { ...t, easing: spring2(options) });
+  if (((_a = transition == null ? void 0 : transition.__easing) == null ? void 0 : _a[0]) === "spring") {
+    const _b = transition, {
+      __easing: [_, options]
+    } = _b, t = __objRest(_b, [
+      "__easing"
+    ]);
+    return animate2(el, keyframes, __spreadProps(__spreadValues({}, t), { easing: spring2(options) }));
   } else {
     return animate2(el, keyframes, transition);
   }
@@ -836,11 +868,12 @@ function createMotionHook() {
       },
       maybeAnimate() {
         const config = this.getConfig() || {};
-        if (!config.defer) {
+        if (!config.opts.defer) {
           doAnimation(this.el, config);
         }
       },
       mounted() {
+        console.log(this.getConfig());
         this.maybeAnimate();
       },
       updated() {
@@ -864,8 +897,9 @@ function createLiveMotion() {
     doAnimation(e.target, { keyframes, transition });
   });
   window.addEventListener("live_motion:hide", (e) => {
+    var _a;
     const target = e.target;
-    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+    if (((_a = e.detail) == null ? void 0 : _a.keyframes) && Object.keys(e.detail.keyframes).length > 0) {
       const { keyframes, transition } = e.detail;
       const duration = getDuration(transition);
       performTransition(target, duration, { keyframes, transition }).then(() => target.style.display = "none");
@@ -881,8 +915,9 @@ function createLiveMotion() {
     }
   });
   window.addEventListener("live_motion:show", (e) => {
+    var _a;
     const target = e.target;
-    if (e.detail?.keyframes && Object.keys(e.detail.keyframes).length > 0) {
+    if (((_a = e.detail) == null ? void 0 : _a.keyframes) && Object.keys(e.detail.keyframes).length > 0) {
       const { keyframes, transition, display } = e.detail;
       const duration = getDuration(transition);
       target.style.display = display;
@@ -911,6 +946,7 @@ function createLiveMotion() {
   };
 }
 function getDuration(transition) {
-  return transition?.__easing?.[0] === "spring" ? MAX_TRANSITION_DURATION : typeof transition?.duration !== "undefined" ? transition.duration * 1e3 : DEFAULT_TRANSITION_DURATION;
+  var _a;
+  return ((_a = transition == null ? void 0 : transition.__easing) == null ? void 0 : _a[0]) === "spring" ? MAX_TRANSITION_DURATION : typeof (transition == null ? void 0 : transition.duration) !== "undefined" ? transition.duration * 1e3 : DEFAULT_TRANSITION_DURATION;
 }
 //# sourceMappingURL=live_motion.cjs.js.map

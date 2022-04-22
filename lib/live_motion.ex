@@ -181,7 +181,14 @@ defmodule LiveMotion do
     <div
       id={@id}
       phx-hook="Motion"
-      data-motion={animate(@animate, @transition, @exit, @defer)}
+      data-motion={
+        animate(
+          @animate,
+          transition: @transition,
+          exit: @exit,
+          defer: @defer
+        )
+      }
       phx-remove={LiveMotion.JS.hide(to: "##{@id}")}
       style={@style}
       {@rest}
@@ -191,12 +198,15 @@ defmodule LiveMotion do
     """
   end
 
-  defp animate(keyframes, transition, exit_keyframes, defer) do
+  defp animate(keyframes, opts) do
+    {transition, opts} = Keyword.pop(opts, :transition, [])
+    {exit_keyframes, opts} = Keyword.pop(opts, :exit, [])
+
     %Motion{
       keyframes: Enum.into(keyframes, %{}),
       transition: Enum.into(transition, %{}),
       exit: Enum.into(exit_keyframes, %{}),
-      defer: defer
+      opts: Enum.into(opts, %{})
     }
     |> translate_easing()
   end

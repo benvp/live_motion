@@ -3,7 +3,7 @@ defmodule LiveMotion.Motion do
   Represents configuration for LiveMotion animations.
   """
 
-  defstruct keyframes: %{}, transition: nil, exit: nil, defer: false
+  defstruct keyframes: %{}, transition: nil, exit: nil, opts: %{}
 
   defimpl Phoenix.HTML.Safe, for: LiveMotion.Motion do
     def to_iodata(%LiveMotion.Motion{} = motion) do

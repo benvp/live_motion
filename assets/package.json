@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "motion": "^10.7.0"
+  },
+  "devDependencies": {
+    "phoenix_live_view": "file:../deps/phoenix_live_view",
+    "typescript": "^4.6.3"
   }
 }

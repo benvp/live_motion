@@ -37,7 +37,7 @@ var LiveMotion = (() => {
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
-  // js/live_motion/index.js
+  // js/live_motion/index.ts
   var live_motion_exports = {};
   __export(live_motion_exports, {
     createLiveMotion: () => createLiveMotion
@@ -840,7 +840,7 @@ var LiveMotion = (() => {
     return animationFunction(target, keyframesOrOptions, options);
   }
 
-  // js/live_motion/live_motion.js
+  // js/live_motion/live_motion.ts
   var MAX_TRANSITION_DURATION = 10 * 1e3;
   var DEFAULT_TRANSITION_DURATION = 300;
   var doAnimation = (el, config) => {
@@ -870,11 +870,12 @@ var LiveMotion = (() => {
         },
         maybeAnimate() {
           const config = this.getConfig() || {};
-          if (!config.defer) {
+          if (!config.opts.defer) {
             doAnimation(this.el, config);
           }
         },
         mounted() {
+          console.log(this.getConfig());
           this.maybeAnimate();
         },
         updated() {
