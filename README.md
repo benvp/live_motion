@@ -108,4 +108,4 @@ are still a few limitations, which will be added in future releases.
 
 Any contribution is very much welcome. The project itself works just as any other mix project.
 
-Please do not include an updated `priv/static/live_view.js` in pull requests. The maintainers will update it as part of the release process.
+Please do not include an updated `priv/static/live_motion.js` in pull requests. The maintainers will update it as part of the release process.
