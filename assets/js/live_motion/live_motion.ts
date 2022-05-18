@@ -6,13 +6,32 @@ import {
   LiveMotionHooksDefinition,
   LiveMotionShowEvent,
   LiveMotionToggleEvent,
+  Optional,
 } from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
 const DEFAULT_TRANSITION_DURATION = 300;
 
-const doAnimation = (el: HTMLElement, config: Omit<LiveMotionConfig, 'opts'>) => {
-  const { keyframes, transition } = config;
+const doAnimation = (el: HTMLElement, config: Optional<LiveMotionConfig, 'opts'>) => {
+  const { keyframes, transition, opts } = config;
+
+  const animationWithLifecycle = (animateFn: () => ReturnType<typeof animate>) => {
+    if (opts?.on_animation_start) {
+      liveSocket.execJS(el, opts.on_animation_start);
+    }
+
+    const animation = animateFn();
+
+    animation.finished.then((animations: any) => {
+      if (opts?.on_animation_complete) {
+        liveSocket.execJS(el, opts.on_animation_complete);
+      }
+
+      return animations;
+    });
+
+    return animation;
+  };
 
   if (transition?.__easing?.[0] === 'spring') {
     const {
@@ -20,16 +39,16 @@ const doAnimation = (el: HTMLElement, config: Omit<LiveMotionConfig, 'opts'>) =>
       ...t
     } = transition;
 
-    return animate(el, keyframes, { ...t, easing: spring(options) });
+    return animationWithLifecycle(() => animate(el, keyframes, { ...t, easing: spring(options) }));
   } else {
-    return animate(el, keyframes, transition);
+    return animationWithLifecycle(() => animate(el, keyframes, transition));
   }
 };
 
 const performTransition = (
   target: HTMLElement,
   duration: number,
-  config: Omit<LiveMotionConfig, 'opts'>,
+  config: Optional<LiveMotionConfig, 'opts'>,
 ) =>
   new Promise((resolve, reject) => {
     // TODO: check if there is a better way than relying on the global
@@ -51,6 +70,7 @@ function createMotionHook(): LiveMotionHooksDefinition {
       },
       maybeAnimate() {
         const config = this.getConfig();
+
         if (config && !config?.opts.defer) {
           doAnimation(this.el, config);
         }
@@ -86,9 +106,10 @@ export function createLiveMotion() {
 
     if (detail && target) {
       const { keyframes, transition } = detail || {};
+      const { opts } = getMotionConfig(target) ?? {};
 
       if (target) {
-        doAnimation(target, { keyframes, transition });
+        doAnimation(target, { keyframes, transition, opts });
       }
     }
   });
@@ -99,9 +120,10 @@ export function createLiveMotion() {
     if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
       // params given
       const { keyframes, transition } = detail;
+      const { opts } = getMotionConfig(target) ?? {};
       const duration = getDuration(transition);
 
-      performTransition(target as HTMLElement, duration, { keyframes, transition }).then(
+      performTransition(target as HTMLElement, duration, { keyframes, transition, opts }).then(
         () => (target.style.display = 'none'),
       );
     } else {
@@ -112,12 +134,12 @@ export function createLiveMotion() {
         );
       }
 
-      const { exit, transition } = getMotionConfig(target);
+      const { exit, transition, opts } = getMotionConfig(target) ?? {};
 
       if (exit) {
         const duration = getDuration(transition);
 
-        performTransition(target, duration, { keyframes: exit, transition }).then(
+        performTransition(target, duration, { keyframes: exit, transition, opts }).then(
           () => (target.style.display = 'none'),
         );
       }
@@ -130,10 +152,11 @@ export function createLiveMotion() {
     if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
       // params given
       const { keyframes, transition, display } = detail;
+      const { opts } = getMotionConfig(target) ?? {};
       const duration = getDuration(transition);
 
       target.style.display = display;
-      performTransition(target, duration, { keyframes, transition });
+      performTransition(target, duration, { keyframes, transition, opts });
     } else {
       // infer params from target
       if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
@@ -142,14 +165,16 @@ export function createLiveMotion() {
         );
       }
 
-      const { keyframes, transition } = getMotionConfig(target);
+      const { keyframes, transition, opts } = getMotionConfig(target) ?? {};
       const duration = getDuration(transition);
 
       if (detail) {
         target.style.display = detail.display;
       }
 
-      performTransition(target, duration, { keyframes, transition });
+      if (keyframes) {
+        performTransition(target, duration, { keyframes, transition, opts });
+      }
     }
   });
 
@@ -158,6 +183,7 @@ export function createLiveMotion() {
 
     if (detail) {
       const { keyframes, transition } = detail;
+      const { opts } = getMotionConfig(target) ?? {};
 
       const toggle = target.dataset.motionToggle === 'true';
 
@@ -166,7 +192,7 @@ export function createLiveMotion() {
       const t =
         !transition.in || !transition.out ? transition : toggle ? transition.in : transition.out;
 
-      doAnimation(target, { keyframes: kf, transition: t });
+      doAnimation(target, { keyframes: kf, transition: t, opts });
 
       target.dataset.motionToggle = String(!toggle);
     }
@@ -192,5 +218,5 @@ function getDuration(transition: LiveMotionConfig['transition']) {
 }
 
 function getMotionConfig(el: HTMLElement) {
-  return el.dataset.motion ? JSON.parse(el.dataset.motion) : undefined;
+  return el.dataset.motion ? (JSON.parse(el.dataset.motion) as LiveMotionConfig) : undefined;
 }

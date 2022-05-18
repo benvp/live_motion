@@ -1,8 +1,12 @@
 import { AnimationOptionsWithOverrides, MotionKeyframesDefinition, spring } from '@motionone/dom';
 
+export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
+
 declare global {
   const liveSocket: any;
 }
+
+type LiveViewJSDefinition = any[];
 
 // type SpringOptions is not exported, so we extract it from the function definition.
 export type LiveMotionSpringOptions = Parameters<typeof spring>[0];
@@ -13,11 +17,14 @@ export type LiveMotionAnimationOptions = AnimationOptionsWithOverrides & {
 
 export type LiveMotionConfigOptions = {
   defer?: boolean;
+  on_animation_start?: LiveViewJSDefinition;
+  on_animation_complete?: LiveViewJSDefinition;
 };
 
 export type LiveMotionConfig = {
   keyframes: MotionKeyframesDefinition;
   transition?: LiveMotionAnimationOptions;
+  exit?: MotionKeyframesDefinition;
   opts: LiveMotionConfigOptions;
 };
 

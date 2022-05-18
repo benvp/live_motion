@@ -75,9 +75,12 @@ defmodule LiveMotion.JS do
       If the option is not provided, the target element will be used.
 
   '''
-  def animate(keyframes, transition, opts \\ []) do
+  def animate(keyframes, transition, opts \\ []), do: animate(%JS{}, keyframes, transition, opts)
+
+  @doc "See `animate/3`."
+  def animate(js, keyframes, transition, opts) do
     opts = Keyword.merge(opts, detail: build_dispatch_detail(keyframes, transition))
-    JS.dispatch("live_motion:animate", opts)
+    JS.dispatch(js, "live_motion:animate", opts)
   end
 
   @doc ~S'''
@@ -117,7 +120,11 @@ defmodule LiveMotion.JS do
       If the option is not provided, the target element will be used.
 
   '''
-  def toggle(keyframes, transition \\ [], opts \\ []) do
+  def toggle(keyframes, transition \\ [], opts \\ []),
+    do: toggle(%JS{}, keyframes, transition, opts)
+
+  @doc "See `toggle/3`."
+  def toggle(js, keyframes, transition, opts) do
     opts =
       Keyword.merge(opts,
         detail: %{
@@ -129,7 +136,7 @@ defmodule LiveMotion.JS do
         }
       )
 
-    JS.dispatch("live_motion:toggle", opts)
+    JS.dispatch(js, "live_motion:toggle", opts)
   end
 
   @doc """
@@ -149,13 +156,16 @@ defmodule LiveMotion.JS do
     * `transition` - The optional transition options.
 
   """
-  def hide(opts \\ []) do
+  def hide(opts \\ []), do: hide(%JS{}, opts)
+
+  @doc "See `hide/1`."
+  def hide(js, opts) do
     {keyframes, opts} = Keyword.pop(opts, :keyframes, [])
     {transition, opts} = Keyword.pop(opts, :transition, [])
 
     opts = Keyword.merge(opts, detail: build_dispatch_detail(keyframes, transition))
 
-    JS.dispatch("live_motion:hide", opts)
+    JS.dispatch(js, "live_motion:hide", opts)
   end
 
   @doc """
@@ -174,7 +184,10 @@ defmodule LiveMotion.JS do
     * `display` - The optional display value to set when showing. Defaults to "block".
 
   """
-  def show(opts \\ []) do
+  def show(opts \\ []), do: show(%JS{}, opts)
+
+  @doc "See `show/1`."
+  def show(js, opts) do
     {keyframes, opts} = Keyword.pop(opts, :keyframes, [])
     {transition, opts} = Keyword.pop(opts, :transition, [])
     {display, opts} = Keyword.pop(opts, :display, "block")
@@ -185,7 +198,7 @@ defmodule LiveMotion.JS do
 
     opts = Keyword.merge(opts, detail: detail)
 
-    JS.dispatch("live_motion:show", opts)
+    JS.dispatch(js, "live_motion:show", opts)
   end
 
   defp build_dispatch_detail(keyframes, transition) do

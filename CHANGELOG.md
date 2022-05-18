@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.0] (2022-05-18)
+
+### Added
+
+- Adds new lifecycle functions `on_animation_start` and `on_animation_complete`.
+- Make `LiveMotion.JS` functions composable with `Phoenix.LiveView.JS`.
+
+### Changed
+
+- Converted JavaScript codebase to TypeScript.
+
+### Bugfixes
+
+- Animations trigger correctly when a component is updated. ([[#3](https://github.com/benvp/live_motion/issues/3)]).
+
 ## [v0.1.2] (2022-04-14)
 
 ### Added

@@ -522,8 +522,7 @@ function animateStyle(element, key, keyframesDefinition, options = {}) {
       if (definition) {
         keyframes = keyframes.map((value) => isNumber(value) ? definition.toDefaultUnit(value) : value);
       }
-      const needsToReadInitialKeyframe = !supports.partialKeyframes() && keyframes.length === 1;
-      if (isRecording || needsToReadInitialKeyframe) {
+      if (keyframes.length === 1 && (!supports.partialKeyframes() || isRecording)) {
         keyframes.unshift(readInitialValue());
       }
       const animationOptions = {
@@ -553,7 +552,8 @@ function animateStyle(element, key, keyframesDefinition, options = {}) {
       }).catch(noop);
       if (!allowWebkitAcceleration)
         animation.playbackRate = 1.000001;
-    } else if (valueIsTransform && keyframes.every(isNumber)) {
+    } else if (valueIsTransform) {
+      keyframes = keyframes.map((value) => typeof value === "string" ? parseFloat(value) : value);
       if (keyframes.length === 1) {
         keyframes.unshift(parseFloat(readInitialValue()));
       }
@@ -843,16 +843,29 @@ var MAX_TRANSITION_DURATION = 10 * 1e3;
 var DEFAULT_TRANSITION_DURATION = 300;
 var doAnimation = (el, config) => {
   var _a;
-  const { keyframes, transition } = config;
+  const { keyframes, transition, opts } = config;
+  const animationWithLifecycle = (animateFn) => {
+    if (opts == null ? void 0 : opts.on_animation_start) {
+      liveSocket.execJS(el, opts.on_animation_start);
+    }
+    const animation = animateFn();
+    animation.finished.then((animations) => {
+      if (opts == null ? void 0 : opts.on_animation_complete) {
+        liveSocket.execJS(el, opts.on_animation_complete);
+      }
+      return animations;
+    });
+    return animation;
+  };
   if (((_a = transition == null ? void 0 : transition.__easing) == null ? void 0 : _a[0]) === "spring") {
     const _b = transition, {
       __easing: [_, options]
     } = _b, t = __objRest(_b, [
       "__easing"
     ]);
-    return animate2(el, keyframes, __spreadProps(__spreadValues({}, t), { easing: spring2(options) }));
+    return animationWithLifecycle(() => animate2(el, keyframes, __spreadProps(__spreadValues({}, t), { easing: spring2(options) })));
   } else {
-    return animate2(el, keyframes, transition);
+    return animationWithLifecycle(() => animate2(el, keyframes, transition));
   }
 };
 var performTransition = (target, duration, config) => new Promise((resolve, reject) => {
@@ -873,7 +886,6 @@ function createMotionHook() {
         }
       },
       mounted() {
-        console.log(this.getConfig());
         this.maybeAnimate();
       },
       updated() {
@@ -893,58 +905,68 @@ function handleMotionUpdates(from, to) {
 }
 function createLiveMotion() {
   window.addEventListener("live_motion:animate", (e) => {
+    var _a;
     const { target, detail } = e;
     if (detail && target) {
       const { keyframes, transition } = detail || {};
+      const { opts } = (_a = getMotionConfig(target)) != null ? _a : {};
       if (target) {
-        doAnimation(target, { keyframes, transition });
+        doAnimation(target, { keyframes, transition, opts });
       }
     }
   });
   window.addEventListener("live_motion:hide", (e) => {
+    var _a, _b;
     const { target, detail } = e;
     if (target && (detail == null ? void 0 : detail.keyframes) && Object.keys(detail.keyframes).length > 0) {
       const { keyframes, transition } = detail;
+      const { opts } = (_a = getMotionConfig(target)) != null ? _a : {};
       const duration = getDuration(transition);
-      performTransition(target, duration, { keyframes, transition }).then(() => target.style.display = "none");
+      performTransition(target, duration, { keyframes, transition, opts }).then(() => target.style.display = "none");
     } else {
       if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
         console.warn("[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?");
       }
-      const { exit, transition } = getMotionConfig(target);
+      const { exit, transition, opts } = (_b = getMotionConfig(target)) != null ? _b : {};
       if (exit) {
         const duration = getDuration(transition);
-        performTransition(target, duration, { keyframes: exit, transition }).then(() => target.style.display = "none");
+        performTransition(target, duration, { keyframes: exit, transition, opts }).then(() => target.style.display = "none");
       }
     }
   });
   window.addEventListener("live_motion:show", (e) => {
+    var _a, _b;
     const { target, detail } = e;
     if (target && (detail == null ? void 0 : detail.keyframes) && Object.keys(detail.keyframes).length > 0) {
       const { keyframes, transition, display } = detail;
+      const { opts } = (_a = getMotionConfig(target)) != null ? _a : {};
       const duration = getDuration(transition);
       target.style.display = display;
-      performTransition(target, duration, { keyframes, transition });
+      performTransition(target, duration, { keyframes, transition, opts });
     } else {
       if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
         console.warn("[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?");
       }
-      const { keyframes, transition } = getMotionConfig(target);
+      const { keyframes, transition, opts } = (_b = getMotionConfig(target)) != null ? _b : {};
       const duration = getDuration(transition);
       if (detail) {
         target.style.display = detail.display;
       }
-      performTransition(target, duration, { keyframes, transition });
+      if (keyframes) {
+        performTransition(target, duration, { keyframes, transition, opts });
+      }
     }
   });
   window.addEventListener("live_motion:toggle", (e) => {
+    var _a;
     const { target, detail } = e;
     if (detail) {
       const { keyframes, transition } = detail;
+      const { opts } = (_a = getMotionConfig(target)) != null ? _a : {};
       const toggle = target.dataset.motionToggle === "true";
       const kf = !keyframes.in || !keyframes.out ? keyframes : toggle ? keyframes.in : keyframes.out;
       const t = !transition.in || !transition.out ? transition : toggle ? transition.in : transition.out;
-      doAnimation(target, { keyframes: kf, transition: t });
+      doAnimation(target, { keyframes: kf, transition: t, opts });
       target.dataset.motionToggle = String(!toggle);
     }
   });

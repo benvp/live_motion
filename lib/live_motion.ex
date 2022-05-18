@@ -109,6 +109,14 @@ defmodule LiveMotion do
   - `defer`: If set, will defer the animation until it's somehow manually triggered. Use
   in combination with `LiveMotion.JS.show/1`.
 
+  - `on_animation_start`: Lifecycle event when the animation starts. If given a string, then the
+  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
+  function.
+
+  - `on_animation_complete`: Lifecycle event when the animation has completed. If given a string, then the
+  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
+  function.
+
 
   ## Keyframe
 
@@ -155,7 +163,16 @@ defmodule LiveMotion do
   You need to pass the options as a Keyword list and in snake case.
   '''
   def motion(assigns) do
-    rest = assigns_to_attributes(assigns, [:animate, :transition, :initial, :exit, :defer])
+    rest =
+      assigns_to_attributes(assigns, [
+        :animate,
+        :transition,
+        :initial,
+        :exit,
+        :defer,
+        :on_animation_start,
+        :on_animation_complete
+      ])
 
     initial =
       case assigns[:initial] do
@@ -174,6 +191,8 @@ defmodule LiveMotion do
       |> assign_new(:transition, fn -> [] end)
       |> assign_new(:exit, fn -> [] end)
       |> assign_new(:defer, fn -> false end)
+      |> assign_new(:on_animation_start, fn -> nil end)
+      |> assign_new(:on_animation_complete, fn -> nil end)
       |> assign(:style, initial)
       |> assign(:rest, rest)
 
@@ -186,7 +205,9 @@ defmodule LiveMotion do
           @animate,
           transition: @transition,
           exit: @exit,
-          defer: @defer
+          defer: @defer,
+          on_animation_start: @on_animation_start,
+          on_animation_complete: @on_animation_complete
         )
       }
       phx-remove={LiveMotion.JS.hide(to: "##{@id}")}
@@ -209,6 +230,22 @@ defmodule LiveMotion do
       opts: Enum.into(opts, %{})
     }
     |> translate_easing()
+    |> translate_lifecycle()
+  end
+
+  defp translate_lifecycle(%Motion{opts: opts} = motion) do
+    for {key, value}
+        when key in [:on_animation_start, :on_animation_complete] and is_binary(value) <-
+          opts,
+        reduce: motion do
+      m -> js_from_event(m, key, value)
+    end
+  end
+
+  defp js_from_event(motion, key, event_name) when is_binary(event_name) do
+    Map.update!(motion, :opts, fn opts ->
+      Map.put(opts, key, Phoenix.LiveView.JS.push(event_name))
+    end)
   end
 
   defp translate_easing(%Motion{transition: %{easing: [spring: opts]}} = motion) do
