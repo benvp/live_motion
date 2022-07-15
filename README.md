@@ -4,14 +4,16 @@ LiveMotion enables high performance animations declared on the server and run on
 
 ## Documentation
 
-You can find the full API documentation on [hexdocs.pm/live_motion](https://hexdocs.pm/live_motion/LiveMotion.html)
+You can find the full API documentation on [hexdocs.pm/live_motion](https://hexdocs.pm/live_motion/LiveMotion.html).
+
+Additionally you can find a few examples here: [LiveMotion Examples](https://livemotion.benvp.co).
 
 ## Features
 
 - Define animations declaratively directly in your HEEX templates. No definition of CSS
   classes or keyframes required.
 - Animate page transitions using mount/unmount animations. See a little example
-  at [benvp.co](https://benvp.co)
+  at [benvp.co](https://benvp.co). It's very subtle, but when you navigate, you see the page transitions.
 - Trigger animations directly on the client using `LiveMotion.JS` (e.g. button clicks).
 
 ## Installation
