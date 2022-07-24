@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.0]
+
+### Breaking changes
+
+- Remove possibility to animate non LiveMotion components.
+
+### Improvements
+
+- Use `createMotionState` for handling of the animation states.
+
 ## [v0.2.0] (2022-05-18)
 
 ### Added

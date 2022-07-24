@@ -42,26 +42,24 @@ defmodule LiveMotion.JS do
   alias Phoenix.LiveView.JS
 
   @doc ~S'''
-  Animates the target.
+  Triggers the animation of the target.
 
   ## Example
 
       def popcorn(assigns) do
         ~H"""
         <div>
-          <div id="popcorn" style="font-size: 64px">
+          <LiveMotion.motion
+            id="popcorn"
+            animate={[rotate: [0, 20, -10, 30, -10, 0]]}
+            style="font-size: 64px"
+          >
             <span>🍿</span>
-          </div>
+          </LiveMotion.motion>
 
           <button
             type="button"
-            phx-click={
-              LiveMotion.JS.animate(
-                [rotate: [0, 20, -10, 30, -10, 0]],
-                [duration: 0.5],
-                to: "#popcorn"
-              )
-            }
+            phx-click={LiveMotion.JS.animate(to: "#popcorn")}
           >
             Shake it!
           </button>
@@ -75,16 +73,15 @@ defmodule LiveMotion.JS do
       If the option is not provided, the target element will be used.
 
   '''
-  def animate(keyframes, transition, opts \\ []), do: animate(%JS{}, keyframes, transition, opts)
+  def animate(opts \\ []), do: animate(%JS{}, opts)
 
   @doc "See `animate/3`."
-  def animate(js, keyframes, transition, opts) do
-    opts = Keyword.merge(opts, detail: build_dispatch_detail(keyframes, transition))
+  def animate(js, opts) do
     JS.dispatch(js, "live_motion:animate", opts)
   end
 
   @doc ~S'''
-  Animates between two animation states.
+  Animates between the `animate` and `exit` props.
 
   ## Example
 
@@ -98,14 +95,7 @@ defmodule LiveMotion.JS do
           <button
             type="button"
             phx-click={
-              LiveMotion.JS.toggle(
-                [
-                  in: [x: -200],
-                  out: [x: 200]
-                ],
-                [],
-                to: "#popcorn"
-              )
+              LiveMotion.JS.toggle(to: "#popcorn")
             }
           >
             Move popcorn
@@ -120,22 +110,11 @@ defmodule LiveMotion.JS do
       If the option is not provided, the target element will be used.
 
   '''
-  def toggle(keyframes, transition \\ [], opts \\ []),
-    do: toggle(%JS{}, keyframes, transition, opts)
+  def toggle(opts \\ []),
+    do: toggle(%JS{}, opts)
 
   @doc "See `toggle/3`."
-  def toggle(js, keyframes, transition, opts) do
-    opts =
-      Keyword.merge(opts,
-        detail: %{
-          keyframes: %{
-            in: Enum.into(keyframes[:in], %{}),
-            out: Enum.into(keyframes[:out], %{})
-          },
-          transition: Enum.into(transition, %{})
-        }
-      )
-
+  def toggle(js, opts) do
     JS.dispatch(js, "live_motion:toggle", opts)
   end
 
@@ -144,43 +123,26 @@ defmodule LiveMotion.JS do
 
   Triggers the `exit` animation defined on the target.
 
-  Additionally allows `keyframes` and `transition` to be defined. These will be used
-  to animate the target element and therefore the target does not require to be a
-  `LiveMotion.motion` component.
-
   ## Options
 
     * `to` - The query selector on which element to perform the animation.
       If the option is not provided, the target element will be used.
-    * `keyframes` - The optional keyframe keyword list defining the animations.
-    * `transition` - The optional transition options.
 
   """
   def hide(opts \\ []), do: hide(%JS{}, opts)
 
   @doc "See `hide/1`."
   def hide(js, opts) do
-    {keyframes, opts} = Keyword.pop(opts, :keyframes, [])
-    {transition, opts} = Keyword.pop(opts, :transition, [])
-
-    opts = Keyword.merge(opts, detail: build_dispatch_detail(keyframes, transition))
-
     JS.dispatch(js, "live_motion:hide", opts)
   end
 
   @doc """
   Shows an element and triggers the animation defined on the target.
 
-  Additionally allows `keyframes` and `transition` to be defined. These will be used
-  to animate the target element and therefore the target does not require to be a
-  `LiveMotion.motion` component.
-
   ## Options
 
     * `to` - The query selector on which element to perform the animation.
       If the option is not provided, the target element will be used.
-    * `keyframes` - The optional keyframe keyword list defining the animations.
-    * `transition` - The optional transition options.
     * `display` - The optional display value to set when showing. Defaults to "block".
 
   """
@@ -188,23 +150,9 @@ defmodule LiveMotion.JS do
 
   @doc "See `show/1`."
   def show(js, opts) do
-    {keyframes, opts} = Keyword.pop(opts, :keyframes, [])
-    {transition, opts} = Keyword.pop(opts, :transition, [])
     {display, opts} = Keyword.pop(opts, :display, "block")
-
-    detail =
-      build_dispatch_detail(keyframes, transition)
-      |> Map.put_new(:display, display)
-
-    opts = Keyword.merge(opts, detail: detail)
+    opts = Keyword.merge(opts, detail: %{ display: display})
 
     JS.dispatch(js, "live_motion:show", opts)
-  end
-
-  defp build_dispatch_detail(keyframes, transition) do
-    %{
-      keyframes: Enum.into(keyframes, %{}),
-      transition: Enum.into(transition, %{})
-    }
   end
 end

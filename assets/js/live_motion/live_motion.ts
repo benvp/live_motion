@@ -1,87 +1,128 @@
-import { animate, spring } from 'motion';
+import { animate, createMotionState, spring, mountedStates } from 'motion';
 import {
   LiveMotionAnimateEvent,
   LiveMotionConfig,
   LiveMotionHideEvent,
+  LiveMotionHook,
   LiveMotionHooksDefinition,
   LiveMotionShowEvent,
   LiveMotionToggleEvent,
+  MaybeAnimateOptions,
+  MotionOptions,
   Optional,
 } from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
 const DEFAULT_TRANSITION_DURATION = 300;
 
-const doAnimation = (el: HTMLElement, config: Optional<LiveMotionConfig, 'opts'>) => {
-  const { keyframes, transition, opts } = config;
+// const doAnimation = (el: HTMLElement, config: Optional<LiveMotionConfig, 'opts'>) => {
+//   const { keyframes, transition, opts } = config;
 
-  const animationWithLifecycle = (animateFn: () => ReturnType<typeof animate>) => {
-    if (opts?.on_animation_start) {
-      liveSocket.execJS(el, opts.on_animation_start);
-    }
+//   const animationWithLifecycle = (animateFn: () => ReturnType<typeof animate>) => {
+//     if (opts?.on_animation_start) {
+//       liveSocket.execJS(el, opts.on_animation_start);
+//     }
 
-    const animation = animateFn();
+//     const animation = animateFn();
 
-    animation.finished.then((animations: any) => {
-      if (opts?.on_animation_complete) {
-        liveSocket.execJS(el, opts.on_animation_complete);
-      }
+//     animation.finished.then((animations: any) => {
+//       if (opts?.on_animation_complete) {
+//         liveSocket.execJS(el, opts.on_animation_complete);
+//       }
 
-      return animations;
-    });
+//       return animations;
+//     });
 
-    return animation;
-  };
+//     return animation;
+//   };
 
-  if (transition?.__easing?.[0] === 'spring') {
-    const {
-      __easing: [_, options],
-      ...t
-    } = transition;
+//   if (transition?.__easing?.[0] === 'spring') {
+//     const {
+//       __easing: [_, options],
+//       ...t
+//     } = transition;
 
-    return animationWithLifecycle(() => animate(el, keyframes, { ...t, easing: spring(options) }));
-  } else {
-    return animationWithLifecycle(() => animate(el, keyframes, transition));
-  }
-};
+//     return animationWithLifecycle(() => animate(el, keyframes, { ...t, easing: spring(options) }));
+//   } else {
+//     return animationWithLifecycle(() => animate(el, keyframes, transition));
+//   }
+// };
 
-const performTransition = (
-  target: HTMLElement,
-  duration: number,
-  config: Optional<LiveMotionConfig, 'opts'>,
-) =>
-  new Promise((resolve, reject) => {
-    // TODO: check if there is a better way than relying on the global
-    // liveSocket variable.
-    liveSocket.transition(duration, () => {
-      // resolving with the controls does not work as controls
-      // is a Proxy and then something within motion fails.
-      // For now, we only resolve when the animation finishes
-      // or reject if it cancels.
-      doAnimation(target, config).finished.then(resolve).catch(reject);
-    });
-  });
+const motionHooks = new WeakMap<Element, LiveMotionHook>();
 
 function createMotionHook(): LiveMotionHooksDefinition {
+  function registerEventHandlers(this: LiveMotionHook) {
+    const config = this.getConfig();
+
+    this.eventHandlers = {
+      motionstart: () => {
+        liveSocket.execJS(this.el, config?.opts.on_animation_start);
+      },
+      motioncomplete: () => {
+        liveSocket.execJS(this.el, config?.opts.on_animation_complete);
+      },
+    };
+
+    if (config?.opts.on_animation_start) {
+      this.el.addEventListener('motionstart', this.eventHandlers['motionstart']);
+    }
+
+    if (config?.opts.on_animation_complete) {
+      this.el.addEventListener('motioncomplete', this.eventHandlers['motioncomplete']);
+    }
+  }
+
   return {
     Motion: {
       getConfig() {
         return getMotionConfig(this.el);
       },
-      maybeAnimate() {
+      getMotionOptions() {
         const config = this.getConfig();
 
-        if (config && !config?.opts.defer) {
-          doAnimation(this.el, config);
+        if (!config) {
+          return undefined;
+        }
+
+        return {
+          initial: config.initial,
+          animate: config.animate,
+          exit: config.exit,
+          transition: config.transition,
+        } as MotionOptions;
+      },
+      maybeAnimate(options: MaybeAnimateOptions) {
+        const { force = false } = options || {};
+        const config = this.getConfig();
+        const motionOptions = this.getMotionOptions();
+
+        if (this.state && motionOptions && config && (!config?.opts.defer || force)) {
+          this.state.update(motionOptions);
         }
       },
       mounted() {
+        motionHooks.set(this.el, this);
+        registerEventHandlers.apply(this);
+
+        this.state = createMotionState(this.getMotionOptions());
+        this.cleanup = this.state.mount(this.el);
         this.maybeAnimate();
+      },
+      destroyed() {
+        // unregister event handlers
+        if (this.eventHandlers) {
+          Object.entries(this.eventHandlers).forEach(([e, fn]) =>
+            this.el.removeEventListener(e, fn),
+          );
+        }
+
+        motionHooks.delete(this.el);
+        this.cleanup?.();
       },
       updated() {
         this.maybeAnimate();
       },
-    },
+    } as LiveMotionHook,
   };
 }
 
@@ -102,99 +143,89 @@ function handleMotionUpdates(from: HTMLElement, to: HTMLElement) {
 
 export function createLiveMotion() {
   window.addEventListener('live_motion:animate', (e) => {
-    const { target, detail } = e as LiveMotionAnimateEvent;
+    const { target } = e as LiveMotionAnimateEvent;
+    const motion = motionHooks.get(target);
 
-    if (detail && target) {
-      const { keyframes, transition } = detail || {};
-      const { opts } = getMotionConfig(target) ?? {};
+    if (!motion && liveSocket.isDebugEnabled()) {
+      console.warn(
+        '[LiveMotion] Motion element not found. Did you forget to make your target a LiveMotion.motion component?',
+      );
+    }
 
-      if (target) {
-        doAnimation(target, { keyframes, transition, opts });
-      }
+    if (motion) {
+      motion.maybeAnimate({ force: true });
     }
   });
 
   window.addEventListener('live_motion:hide', (e) => {
-    const { target, detail } = e as LiveMotionHideEvent;
+    const { target } = e as LiveMotionHideEvent;
+    const motion = motionHooks.get(target);
 
-    if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
-      // params given
-      const { keyframes, transition } = detail;
-      const { opts } = getMotionConfig(target) ?? {};
-      const duration = getDuration(transition);
-
-      performTransition(target as HTMLElement, duration, { keyframes, transition, opts }).then(
-        () => (target.style.display = 'none'),
+    if (!motion && liveSocket.isDebugEnabled()) {
+      console.warn(
+        '[LiveMotion] Motion element not found. Did you forget to make your target a LiveMotion.motion component?',
       );
-    } else {
-      // infer params from target
-      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
-        console.warn(
-          '[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?',
-        );
-      }
+    }
 
-      const { exit, transition, opts } = getMotionConfig(target) ?? {};
+    if (motion) {
+      const duration = getDuration(motion.getMotionOptions()?.transition);
 
-      if (exit) {
-        const duration = getDuration(transition);
+      // We need to call the LiveSocket transition so that LiveView
+      // will wait until the transition is finished before removing
+      // the element from the DOM.
+      liveSocket.transition(duration, () => {
+        const motion = motionHooks.get(target);
 
-        performTransition(target, duration, { keyframes: exit, transition, opts }).then(
-          () => (target.style.display = 'none'),
-        );
-      }
+        if (motion) {
+          motion.el.addEventListener('motioncomplete', () => (motion.el.style.display = 'none'), {
+            once: true,
+          });
+
+          motion.state?.setActive('exit', true);
+        }
+      });
     }
   });
 
   window.addEventListener('live_motion:show', (e) => {
     const { target, detail } = e as LiveMotionShowEvent;
+    const motion = motionHooks.get(target);
 
-    if (target && detail?.keyframes && Object.keys(detail.keyframes).length > 0) {
-      // params given
-      const { keyframes, transition, display } = detail;
-      const { opts } = getMotionConfig(target) ?? {};
-      const duration = getDuration(transition);
+    if (!motion && liveSocket.isDebugEnabled()) {
+      console.warn(
+        '[LiveMotion] Motion element not found. Did you forget to make your target a LiveMotion.motion component?',
+      );
+    }
 
-      target.style.display = display;
-      performTransition(target, duration, { keyframes, transition, opts });
-    } else {
-      // infer params from target
-      if (liveSocket.isDebugEnabled() && !target.dataset.motion) {
-        console.warn(
-          '[LiveMotion] Motion configuration is not defined. Did you forget to make your target a LiveMotion.motion component?',
-        );
-      }
-
-      const { keyframes, transition, opts } = getMotionConfig(target) ?? {};
-      const duration = getDuration(transition);
-
-      if (detail) {
-        target.style.display = detail.display;
-      }
-
-      if (keyframes) {
-        performTransition(target, duration, { keyframes, transition, opts });
-      }
+    if (motion) {
+      motion.el.style.display = detail?.display ?? 'block';
+      motion.state?.setActive('exit', false);
+      motion.state?.setActive('animate', true);
     }
   });
 
   window.addEventListener('live_motion:toggle', (e) => {
-    const { target, detail } = e as LiveMotionToggleEvent;
+    const { target } = e as LiveMotionToggleEvent;
+    const motion = motionHooks.get(target);
 
-    if (detail) {
-      const { keyframes, transition } = detail;
-      const { opts } = getMotionConfig(target) ?? {};
+    if (!motion && liveSocket.isDebugEnabled()) {
+      console.warn(
+        '[LiveMotion] Motion element not found. Did you forget to make your target a LiveMotion.motion component?',
+      );
+    }
 
-      const toggle = target.dataset.motionToggle === 'true';
+    if (motion) {
+      const toggle = motion.el.hasAttribute('data-motion-toggle')
+        ? motion.el.dataset.motionToggle === 'true'
+        : !motion.getConfig()?.opts.defer;
 
-      const kf =
-        !keyframes.in || !keyframes.out ? keyframes : toggle ? keyframes.in : keyframes.out;
-      const t =
-        !transition.in || !transition.out ? transition : toggle ? transition.in : transition.out;
+      motion.el.addEventListener(
+        'motioncomplete',
+        () => (motion.el.dataset.motionToggle = String(!toggle)),
+        { once: true },
+      );
 
-      doAnimation(target, { keyframes: kf, transition: t, opts });
-
-      target.dataset.motionToggle = String(!toggle);
+      motion.state?.setActive('exit', toggle);
     }
   });
 

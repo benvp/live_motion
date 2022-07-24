@@ -187,6 +187,7 @@ defmodule LiveMotion do
 
     assigns =
       assigns
+      |> assign_new(:initial, fn -> [] end)
       |> assign_new(:animate, fn -> [] end)
       |> assign_new(:transition, fn -> [] end)
       |> assign_new(:exit, fn -> [] end)
@@ -203,6 +204,7 @@ defmodule LiveMotion do
       data-motion={
         animate(
           @animate,
+          initial: @initial,
           transition: @transition,
           exit: @exit,
           defer: @defer,
@@ -220,11 +222,13 @@ defmodule LiveMotion do
   end
 
   defp animate(keyframes, opts) do
+    {initial, opts} = Keyword.pop(opts, :initial, [])
     {transition, opts} = Keyword.pop(opts, :transition, [])
     {exit_keyframes, opts} = Keyword.pop(opts, :exit, [])
 
     %Motion{
-      keyframes: Enum.into(keyframes, %{}),
+      initial: Enum.into(initial, %{}),
+      animate: Enum.into(keyframes, %{}),
       transition: Enum.into(transition, %{}),
       exit: Enum.into(exit_keyframes, %{}),
       opts: Enum.into(opts, %{})
