@@ -9,44 +9,10 @@ import {
   LiveMotionToggleEvent,
   MaybeAnimateOptions,
   MotionOptions,
-  Optional,
 } from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
 const DEFAULT_TRANSITION_DURATION = 300;
-
-// const doAnimation = (el: HTMLElement, config: Optional<LiveMotionConfig, 'opts'>) => {
-//   const { keyframes, transition, opts } = config;
-
-//   const animationWithLifecycle = (animateFn: () => ReturnType<typeof animate>) => {
-//     if (opts?.on_animation_start) {
-//       liveSocket.execJS(el, opts.on_animation_start);
-//     }
-
-//     const animation = animateFn();
-
-//     animation.finished.then((animations: any) => {
-//       if (opts?.on_animation_complete) {
-//         liveSocket.execJS(el, opts.on_animation_complete);
-//       }
-
-//       return animations;
-//     });
-
-//     return animation;
-//   };
-
-//   if (transition?.__easing?.[0] === 'spring') {
-//     const {
-//       __easing: [_, options],
-//       ...t
-//     } = transition;
-
-//     return animationWithLifecycle(() => animate(el, keyframes, { ...t, easing: spring(options) }));
-//   } else {
-//     return animationWithLifecycle(() => animate(el, keyframes, transition));
-//   }
-// };
 
 const motionHooks = new WeakMap<Element, LiveMotionHook>();
 
@@ -56,18 +22,18 @@ function createMotionHook(): LiveMotionHooksDefinition {
 
     this.eventHandlers = {
       motionstart: () => {
-        liveSocket.execJS(this.el, config?.opts.on_animation_start);
+        liveSocket.execJS(this.el, config?.on_animation_start);
       },
       motioncomplete: () => {
-        liveSocket.execJS(this.el, config?.opts.on_animation_complete);
+        liveSocket.execJS(this.el, config?.on_animation_complete);
       },
     };
 
-    if (config?.opts.on_animation_start) {
+    if (config?.on_animation_start) {
       this.el.addEventListener('motionstart', this.eventHandlers['motionstart']);
     }
 
-    if (config?.opts.on_animation_complete) {
+    if (config?.on_animation_complete) {
       this.el.addEventListener('motioncomplete', this.eventHandlers['motioncomplete']);
     }
   }
@@ -84,11 +50,29 @@ function createMotionHook(): LiveMotionHooksDefinition {
           return undefined;
         }
 
+        const translateEasing = () => {
+          const { transition } = config;
+
+          if (transition?.easing === 'spring') {
+            return spring();
+          }
+
+          if (typeof transition?.easing === 'object' && !Array.isArray(transition.easing)) {
+            return spring(transition.easing?.spring);
+          }
+
+          return transition?.easing;
+        };
+
+        const transition = config.transition?.easing
+          ? { ...config.transition, easing: translateEasing() }
+          : config.transition;
+
         return {
           initial: config.initial,
           animate: config.animate,
           exit: config.exit,
-          transition: config.transition,
+          transition,
         } as MotionOptions;
       },
       maybeAnimate(options: MaybeAnimateOptions) {
@@ -96,7 +80,7 @@ function createMotionHook(): LiveMotionHooksDefinition {
         const config = this.getConfig();
         const motionOptions = this.getMotionOptions();
 
-        if (this.state && motionOptions && config && (!config?.opts.defer || force)) {
+        if (this.state && motionOptions && config && (!config?.defer || force)) {
           this.state.update(motionOptions);
         }
       },
@@ -217,14 +201,9 @@ export function createLiveMotion() {
     if (motion) {
       const toggle = motion.el.hasAttribute('data-motion-toggle')
         ? motion.el.dataset.motionToggle === 'true'
-        : !motion.getConfig()?.opts.defer;
+        : !motion.getConfig()?.defer;
 
-      motion.el.addEventListener(
-        'motioncomplete',
-        () => (motion.el.dataset.motionToggle = String(!toggle)),
-        { once: true },
-      );
-
+      motion.el.dataset.motionToggle = String(!toggle);
       motion.state?.setActive('exit', toggle);
     }
   });
@@ -241,7 +220,12 @@ function getDuration(transition: LiveMotionConfig['transition']) {
   // The element, however, will be hidden as soon as the animation finishes.
   // TODO: find a better way to handle spring animations.
 
-  return transition?.__easing?.[0] === 'spring'
+  const isSpring =
+    transition &&
+    ((typeof transition.easing === 'object' && !Array.isArray(transition.easing)) ||
+      transition.easing === 'spring');
+
+  return isSpring
     ? MAX_TRANSITION_DURATION
     : typeof transition?.duration !== 'undefined'
     ? transition.duration * 1000

@@ -39,17 +39,18 @@ defmodule LiveMotion do
       def render(assigns) do
         ~H"""
         <div>
-          <LiveMotion.motion id="popcorn">
+          <LiveMotion.motion
+            id="popcorn"
+            initial={[opacity: 0]}
+            animate={[opacity: 1]}
+            exit={[opacity: 0]}
+          >
             <span>🍿</span>
           </LiveMotion.motion>
 
-          <button phx-click={LiveMotion.JS.toggle(
-            to: "#popcorn",
-            [
-              in: [opacity: 1],
-              out: [opacity: 0]
-            ]
-          )}>Toggle me</button>
+          <button phx-click={LiveMotion.JS.toggle(to: "#popcorn")}>
+            Toggle me
+          </button>
         </div>
         """
       end
@@ -155,10 +156,10 @@ defmodule LiveMotion do
 
   ## Transition options
 
-  The transition optiona are passed directly to Motion One. The only thing to keep in mind is
+  The transition options are passed directly to Motion One. The only thing to keep in mind is
   the format when defining `spring` animations. Define a spring animation like this:
 
-      [ease: [spring: [stiffness: 100, damping: 50]]]
+      [easing: [spring: [stiffness: 100, damping: 50]]]
 
   You need to pass the options as a Keyword list and in snake case.
   '''
@@ -202,8 +203,8 @@ defmodule LiveMotion do
       id={@id}
       phx-hook="Motion"
       data-motion={
-        animate(
-          @animate,
+        Motion.new(
+          animate: @animate,
           initial: @initial,
           transition: @transition,
           exit: @exit,
@@ -216,49 +217,8 @@ defmodule LiveMotion do
       style={@style}
       {@rest}
     >
-      <%= render_slot(@inner_block) %>
+      <%= if assigns[:inner_block], do: render_slot(@inner_block) %>
     </div>
     """
   end
-
-  defp animate(keyframes, opts) do
-    {initial, opts} = Keyword.pop(opts, :initial, [])
-    {transition, opts} = Keyword.pop(opts, :transition, [])
-    {exit_keyframes, opts} = Keyword.pop(opts, :exit, [])
-
-    %Motion{
-      initial: Enum.into(initial, %{}),
-      animate: Enum.into(keyframes, %{}),
-      transition: Enum.into(transition, %{}),
-      exit: Enum.into(exit_keyframes, %{}),
-      opts: Enum.into(opts, %{})
-    }
-    |> translate_easing()
-    |> translate_lifecycle()
-  end
-
-  defp translate_lifecycle(%Motion{opts: opts} = motion) do
-    for {key, value}
-        when key in [:on_animation_start, :on_animation_complete] and is_binary(value) <-
-          opts,
-        reduce: motion do
-      m -> js_from_event(m, key, value)
-    end
-  end
-
-  defp js_from_event(motion, key, event_name) when is_binary(event_name) do
-    Map.update!(motion, :opts, fn opts ->
-      Map.put(opts, key, Phoenix.LiveView.JS.push(event_name))
-    end)
-  end
-
-  defp translate_easing(%Motion{transition: %{easing: [spring: opts]}} = motion) do
-    Map.update!(motion, :transition, fn transition ->
-      transition
-      |> Map.put(:__easing, [:spring, Enum.into(opts, %{})])
-      |> Map.delete(:easing)
-    end)
-  end
-
-  defp translate_easing(%Motion{} = motion), do: motion
 end
