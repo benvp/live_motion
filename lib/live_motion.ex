@@ -110,11 +110,11 @@ defmodule LiveMotion do
   - `defer`: If set, will defer the animation until it's somehow manually triggered. Use
   in combination with `LiveMotion.JS.show/1`.
 
-  - `on_animation_start`: Lifecycle event when the animation starts. If given a string, then the
+  - `on_motion_start`: Lifecycle event when the animation starts. If given a string, then the
   event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
   function.
 
-  - `on_animation_complete`: Lifecycle event when the animation has completed. If given a string, then the
+  - `on_motion_complete`: Lifecycle event when the animation has completed. If given a string, then the
   event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
   function.
 
@@ -156,12 +156,43 @@ defmodule LiveMotion do
 
   ## Transition options
 
-  The transition options are passed directly to Motion One. The only thing to keep in mind is
-  the format when defining `spring` animations. Define a spring animation like this:
+  The transition options are passed directly to Motion One. Options are provided as a
+  keyword list. You can find a full reference of all supported options in the documentation
+  of the [`animate` function](https://motion.dev/dom/animate#options) of Motion One.
+
+  ### Spring and glide animations
+
+  Create `spring` or `glide` animations by providing a keyword list with the according
+  options for each into the `easing` option of the `transition`.
 
       [easing: [spring: [stiffness: 100, damping: 50]]]
 
+      [easing: [glide: [velocity: 1000]]]
+
   You need to pass the options as a Keyword list and in snake case.
+
+  ### Limitations
+
+  As these animations are based on physics, there is no duration provided. However,
+  when using `exit` animations (e.g. something is removed from the DOM by LiveView),
+  we are forced to provide LiveView with a fixed duration before the element is removed
+  from the DOM.
+
+  This currently defaults to the maximum of the WebAnimations API duration (10 seconds).
+  If the animation completed before, the element will be hidden until it is removed from the DOM
+  by LiveView.
+
+  > #### `duration` hint {: .tip}
+  >
+  > If you provide a `duration` in the `transition` prop, this will be used a hint
+  > for the LiveView transition, so that the actual element is removed from the DOM
+  > before reaching the ten seconds timeout.
+  >
+  > It is recommended to always provide the duration hint when you plan to hide
+  > the element via a server event.
+  >
+  > Please note that the `duration` itself does not have any effect on the actual
+  > length of `spring` or `glide` animations.
   '''
   def motion(assigns) do
     rest =
@@ -170,9 +201,13 @@ defmodule LiveMotion do
         :transition,
         :initial,
         :exit,
+        :hover,
+        :in_view,
+        :in_view_options,
+        :press,
         :defer,
-        :on_animation_start,
-        :on_animation_complete
+        :on_motion_start,
+        :on_motion_complete
       ])
 
     initial =
@@ -192,9 +227,13 @@ defmodule LiveMotion do
       |> assign_new(:animate, fn -> [] end)
       |> assign_new(:transition, fn -> [] end)
       |> assign_new(:exit, fn -> [] end)
+      |> assign_new(:hover, fn -> [] end)
+      |> assign_new(:press, fn -> [] end)
+      |> assign_new(:in_view, fn -> [] end)
+      |> assign_new(:in_view_options, fn -> [] end)
       |> assign_new(:defer, fn -> false end)
-      |> assign_new(:on_animation_start, fn -> nil end)
-      |> assign_new(:on_animation_complete, fn -> nil end)
+      |> assign_new(:on_motion_start, fn -> nil end)
+      |> assign_new(:on_motion_complete, fn -> nil end)
       |> assign(:style, initial)
       |> assign(:rest, rest)
 
@@ -208,9 +247,13 @@ defmodule LiveMotion do
           initial: @initial,
           transition: @transition,
           exit: @exit,
+          hover: @hover,
+          press: @press,
+          in_view: @in_view,
+          in_view_options: @in_view_options,
           defer: @defer,
-          on_animation_start: @on_animation_start,
-          on_animation_complete: @on_animation_complete
+          on_motion_start: @on_motion_start,
+          on_motion_complete: @on_motion_complete
         )
       }
       phx-remove={LiveMotion.JS.hide(to: "##{@id}")}

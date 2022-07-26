@@ -10,9 +10,13 @@ defmodule LiveMotion.Motion do
             animate: %{},
             transition: %{},
             exit: %{},
+            hover: %{},
+            press: %{},
+            in_view: %{},
+            in_view_options: %{},
             defer: false,
-            on_animation_start: nil,
-            on_animation_complete: nil
+            on_motion_start: nil,
+            on_motion_complete: nil
 
   def new(options) do
     %Motion{
@@ -20,9 +24,13 @@ defmodule LiveMotion.Motion do
       animate: to_map(options[:animate]),
       transition: to_map(options[:transition]),
       exit: to_map(options[:exit]),
+      hover: to_map(options[:hover]),
+      press: to_map(options[:press]),
+      in_view: to_map(options[:in_view]),
+      in_view_options: to_map(options[:in_view_options]),
       defer: options[:defer],
-      on_animation_start: maybe_create_event(options[:on_animation_start]),
-      on_animation_complete: maybe_create_event(options[:on_animation_complete])
+      on_motion_start: maybe_create_event(options[:on_motion_start]),
+      on_motion_complete: maybe_create_event(options[:on_motion_complete])
     }
   end
 
@@ -36,14 +44,14 @@ defmodule LiveMotion.Motion do
 
     defp extract_live_view_js(%Motion{} = motion) do
       motion
-      |> Map.update(:on_animation_start, nil, fn
+      |> Map.update(:on_motion_start, nil, fn
         %Phoenix.LiveView.JS{} = js ->
           Phoenix.json_library().encode!(js.ops)
 
         other ->
           other
       end)
-      |> Map.update(:on_animation_complete, nil, fn
+      |> Map.update(:on_motion_complete, nil, fn
         %Phoenix.LiveView.JS{} = js ->
           Phoenix.json_library().encode!(js.ops)
 

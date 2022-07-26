@@ -1,14 +1,14 @@
-import { animate, createMotionState, spring, mountedStates } from 'motion';
+import { animate, createMotionState, spring, mountedStates, glide } from 'motion';
 import {
   LiveMotionAnimateEvent,
   LiveMotionConfig,
   LiveMotionHideEvent,
   LiveMotionHook,
   LiveMotionHooksDefinition,
+  LiveMotionOptions,
   LiveMotionShowEvent,
   LiveMotionToggleEvent,
   MaybeAnimateOptions,
-  MotionOptions,
 } from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
@@ -22,18 +22,19 @@ function createMotionHook(): LiveMotionHooksDefinition {
 
     this.eventHandlers = {
       motionstart: () => {
-        liveSocket.execJS(this.el, config?.on_animation_start);
+        liveSocket.execJS(this.el, config?.on_motion_start);
       },
       motioncomplete: () => {
-        liveSocket.execJS(this.el, config?.on_animation_complete);
+        liveSocket.execJS(this.el, config?.on_motion_complete);
       },
     };
 
-    if (config?.on_animation_start) {
+    console.log(config);
+    if (config?.on_motion_start) {
       this.el.addEventListener('motionstart', this.eventHandlers['motionstart']);
     }
 
-    if (config?.on_animation_complete) {
+    if (config?.on_motion_complete) {
       this.el.addEventListener('motioncomplete', this.eventHandlers['motioncomplete']);
     }
   }
@@ -43,7 +44,7 @@ function createMotionHook(): LiveMotionHooksDefinition {
       getConfig() {
         return getMotionConfig(this.el);
       },
-      getMotionOptions() {
+      getMotionOptions(): LiveMotionOptions | undefined {
         const config = this.getConfig();
 
         if (!config) {
@@ -57,8 +58,18 @@ function createMotionHook(): LiveMotionHooksDefinition {
             return spring();
           }
 
+          if (transition?.easing === 'glide') {
+            return glide();
+          }
+
           if (typeof transition?.easing === 'object' && !Array.isArray(transition.easing)) {
-            return spring(transition.easing?.spring);
+            if (transition.easing.spring) {
+              return spring(transition.easing.spring);
+            }
+
+            if (transition.easing.glide) {
+              return glide(transition.easing.glide);
+            }
           }
 
           return transition?.easing;
@@ -72,8 +83,12 @@ function createMotionHook(): LiveMotionHooksDefinition {
           initial: config.initial,
           animate: config.animate,
           exit: config.exit,
+          hover: config.hover,
+          press: config.press,
+          inView: config.in_view,
+          inViewOptions: config.in_view_options,
           transition,
-        } as MotionOptions;
+        };
       },
       maybeAnimate(options: MaybeAnimateOptions) {
         const { force = false } = options || {};
@@ -152,7 +167,7 @@ export function createLiveMotion() {
     }
 
     if (motion) {
-      const duration = getDuration(motion.getMotionOptions()?.transition);
+      const duration = getDuration(motion.getConfig()?.transition);
 
       // We need to call the LiveSocket transition so that LiveView
       // will wait until the transition is finished before removing
@@ -214,18 +229,22 @@ export function createLiveMotion() {
   };
 }
 
-function getDuration(transition: LiveMotionConfig['transition']) {
+function getDuration(transition?: LiveMotionConfig['transition']) {
   // As spring animations do not have any duration and the duration
   // can not be calculated, we have to fall back to the maximum of 10 seconds.
   // The element, however, will be hidden as soon as the animation finishes.
-  // TODO: find a better way to handle spring animations.
 
-  const isSpring =
+  const isPhysics =
     transition &&
     ((typeof transition.easing === 'object' && !Array.isArray(transition.easing)) ||
-      transition.easing === 'spring');
+      transition.easing === 'spring' ||
+      transition.easing === 'glide');
 
-  return isSpring
+  if (isPhysics && typeof transition?.duration !== 'undefined') {
+    return transition.duration * 1000;
+  }
+
+  return isPhysics
     ? MAX_TRANSITION_DURATION
     : typeof transition?.duration !== 'undefined'
     ? transition.duration * 1000

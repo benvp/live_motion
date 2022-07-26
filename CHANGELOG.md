@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 - Remove possibility to animate non LiveMotion components.
+- Rename event props to `on_motion_start` and `on_motion_complete`.
+
+### New Features
+
+- Support for `glide` animations.
+- Use provided `duration` as a hint when using `spring` or `glide` easing functions.
+- Add `hover`, `press`, `in_view`, `in_view_options` props.
 
 ### Improvements
 

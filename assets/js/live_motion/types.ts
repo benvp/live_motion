@@ -1,5 +1,13 @@
 import { AnimationOptionsWithOverrides, MotionKeyframesDefinition, spring } from '@motionone/dom';
-import { Easing, EasingFunction, EasingGenerator, MotionState, VariantDefinition } from 'motion';
+import {
+  Easing,
+  EasingFunction,
+  EasingGenerator,
+  glide,
+  MotionState,
+  VariantDefinition,
+  Options as MotionOptions,
+} from 'motion';
 
 export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
@@ -11,28 +19,37 @@ type LiveViewJSDefinition = any[];
 
 // type SpringOptions is not exported, so we extract it from the function definition.
 export type LiveMotionSpringOptions = Parameters<typeof spring>[0];
+export type LiveMotionGlideOptions = Parameters<typeof glide>[0];
+
+type LiveMotionEasingOptions =
+  | 'spring'
+  | 'glide'
+  | { spring?: LiveMotionSpringOptions; glide?: LiveMotionGlideOptions };
 
 // TODO: check if can be removed or if we can get away someway else
 export type LiveMotionAnimationOptions = AnimationOptionsWithOverrides & {
-  easing?: Easing | Easing[] | 'spring' | { spring: LiveMotionSpringOptions };
+  easing?: Easing | Easing[] | 'spring' | LiveMotionEasingOptions;
 };
 
-export type LiveMotionConfig = {
-  initial: VariantDefinition;
-  animate: VariantDefinition;
-  transition?: LiveMotionAnimationOptions;
+export type LiveMotionOptions = MotionOptions & {
   exit?: VariantDefinition;
+};
+
+export type LiveMotionConfig = Omit<
+  LiveMotionOptions,
+  'transition' | 'inView' | 'inViewOptions'
+> & {
+  in_view: MotionOptions['inView'];
+  in_view_options: MotionOptions['inViewOptions'];
+  transition?: LiveMotionAnimationOptions;
   defer?: boolean;
-  on_animation_start?: LiveViewJSDefinition;
-  on_animation_complete?: LiveViewJSDefinition;
+  on_motion_start?: LiveViewJSDefinition;
+  on_motion_complete?: LiveViewJSDefinition;
 };
 
 export type LiveMotionHooksDefinition = {
   Motion: LiveMotionHook;
 };
-
-// TODO: Check if we can use Options form Motion directly
-export type MotionOptions = Pick<LiveMotionConfig, 'initial' | 'animate' | 'exit' | 'transition'>;
 
 export type MaybeAnimateOptions = {
   force: boolean;
