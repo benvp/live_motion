@@ -9,14 +9,111 @@ import {
   LiveMotionShowEvent,
   LiveMotionToggleEvent,
   MaybeAnimateOptions,
+  PresenceConfig,
+  PresenceHook,
 } from './types';
 
 const MAX_TRANSITION_DURATION = 10 * 1000;
 const DEFAULT_TRANSITION_DURATION = 300;
 
+const parentHooks = new WeakMap<Element, LiveMotionHook>();
 const motionHooks = new WeakMap<Element, LiveMotionHook>();
+const presenceHooks = new WeakMap<Element, PresenceHook>();
 
-function createMotionHook(): LiveMotionHooksDefinition {
+function maybeGetPresence(el: Element) {
+  const parent = el.parentElement;
+  const presenceEl =
+    parent?.hasAttribute('phx-hook') && parent?.getAttribute('phx-hook') === 'Presence'
+      ? parent
+      : undefined;
+
+  return presenceEl && presenceHooks.get(presenceEl);
+}
+
+function createPresenceHook() {
+  // this should only register if the presence component is in place?
+  window.addEventListener('live_motion:hide', (e) => {
+    const { target } = e as LiveMotionHideEvent;
+    const presenceHook = maybeGetPresence(target);
+
+    if (presenceHook && !presenceHook.exiting) {
+      presenceHook.exitTransition(
+        target,
+        () => !presenceHook.exiting && presenceHook.mountComponents(),
+      );
+    }
+  });
+
+  /**
+   * 1. Mount hook receives new element
+   * 2. Presence needs to check if it already has any mounted element
+   * 3. If yes, the new mount animation needs to be deferred until exit completes
+   * 4. When exit completes, call mount animation
+   */
+  const Presence = {
+    mountComponents() {
+      this.mounts.forEach((fn) => fn());
+      this.mounts = [];
+    },
+    getConfig() {
+      return this.el.dataset.motion
+        ? (JSON.parse(this.el.dataset.motion) as PresenceConfig)
+        : undefined;
+    },
+    exitTransition(exitEl: Element, done) {
+      const motion = motionHooks.get(exitEl);
+
+      if (motion) {
+        const duration = getDuration(motion.getConfig()?.transition);
+
+        liveSocket.transition(duration, () => {
+          motion.el.addEventListener(
+            'motioncomplete',
+            () => {
+              motion.el.style.display = 'none';
+              this.exiting = false;
+              this.unmounts.forEach((fn) => fn());
+              this.unmounts = [];
+              done?.();
+            },
+            {
+              once: true,
+            },
+          );
+
+          this.exiting = true;
+          motion.state?.setActive('exit', true);
+        });
+      }
+    },
+    addMount(fn: () => void) {
+      this.mounts.push(fn);
+
+      if (this.unmounts.length === 0) {
+        // When we don't have any unmounts, then we are mounting the initial component
+        // which means we can directly mount without waiting for any unmounts.
+        this.mountComponents();
+      }
+    },
+    addCleanup(fn: () => void) {
+      this.unmounts.push(fn);
+    },
+    mounted() {
+      this.exiting = false;
+      this.mounts = [];
+      this.unmounts = [];
+
+      presenceHooks.set(this.el, this);
+    },
+    destroyed() {
+      presenceHooks.delete(this.el);
+    },
+  } as PresenceHook;
+
+  return Presence;
+}
+
+function createMotionHook(): LiveMotionHook {
   function registerEventHandlers(this: LiveMotionHook) {
     const config = this.getConfig();
 
@@ -29,7 +126,6 @@ function createMotionHook(): LiveMotionHooksDefinition {
       },
     };
 
-    console.log(config);
     if (config?.on_motion_start) {
       this.el.addEventListener('motionstart', this.eventHandlers['motionstart']);
     }
@@ -39,90 +135,121 @@ function createMotionHook(): LiveMotionHooksDefinition {
     }
   }
 
+  function maybeGetParent(el: Element) {
+    const parentElement = el.parentElement?.closest('[data-motion]');
+    return parentElement && motionHooks.get(parentElement);
+  }
+
   return {
-    Motion: {
-      getConfig() {
-        return getMotionConfig(this.el);
-      },
-      getMotionOptions(): LiveMotionOptions | undefined {
-        const config = this.getConfig();
+    getConfig() {
+      return this.el.dataset.motion
+        ? (JSON.parse(this.el.dataset.motion) as LiveMotionConfig)
+        : undefined;
+    },
+    getMotionOptions(): LiveMotionOptions | undefined {
+      const config = this.getConfig();
 
-        if (!config) {
-          return undefined;
+      if (!config) {
+        return undefined;
+      }
+
+      const translateEasing = () => {
+        const { transition } = config;
+
+        if (transition?.easing === 'spring') {
+          return spring();
         }
 
-        const translateEasing = () => {
-          const { transition } = config;
-
-          if (transition?.easing === 'spring') {
-            return spring();
-          }
-
-          if (transition?.easing === 'glide') {
-            return glide();
-          }
-
-          if (typeof transition?.easing === 'object' && !Array.isArray(transition.easing)) {
-            if (transition.easing.spring) {
-              return spring(transition.easing.spring);
-            }
-
-            if (transition.easing.glide) {
-              return glide(transition.easing.glide);
-            }
-          }
-
-          return transition?.easing;
-        };
-
-        const transition = config.transition?.easing
-          ? { ...config.transition, easing: translateEasing() }
-          : config.transition;
-
-        return {
-          initial: config.initial,
-          animate: config.animate,
-          exit: config.exit,
-          hover: config.hover,
-          press: config.press,
-          inView: config.in_view,
-          inViewOptions: config.in_view_options,
-          transition,
-        };
-      },
-      maybeAnimate(options: MaybeAnimateOptions) {
-        const { force = false } = options || {};
-        const config = this.getConfig();
-        const motionOptions = this.getMotionOptions();
-
-        if (this.state && motionOptions && config && (!config?.defer || force)) {
-          this.state.update(motionOptions);
+        if (transition?.easing === 'glide') {
+          return glide();
         }
-      },
-      mounted() {
-        motionHooks.set(this.el, this);
-        registerEventHandlers.apply(this);
 
-        this.state = createMotionState(this.getMotionOptions());
+        if (typeof transition?.easing === 'object' && !Array.isArray(transition.easing)) {
+          if (transition.easing.spring) {
+            return spring(transition.easing.spring);
+          }
+
+          if (transition.easing.glide) {
+            return glide(transition.easing.glide);
+          }
+        }
+
+        return transition?.easing;
+      };
+
+      const transition = config.transition?.easing
+        ? { ...config.transition, easing: translateEasing() }
+        : config.transition;
+
+      return {
+        initial: config.initial,
+        animate: config.animate,
+        exit: config.exit,
+        hover: config.hover,
+        press: config.press,
+        inView: config.in_view,
+        inViewOptions: config.in_view_options,
+        transition,
+      };
+    },
+    maybeAnimate(options: MaybeAnimateOptions) {
+      const { force = false } = options || {};
+      const config = this.getConfig();
+      const motionOptions = this.getMotionOptions();
+
+      if (this.state && motionOptions && config && (!config?.defer || force)) {
+        this.state.update(motionOptions);
+      }
+    },
+    mounted() {
+      motionHooks.set(this.el, this);
+
+      // determine the parent
+      const parentHook = maybeGetParent(this.el);
+
+      if (parentHook) {
+        parentHooks.set(this.el, parentHook);
+      }
+
+      registerEventHandlers.apply(this);
+
+      this.state = createMotionState(this.getMotionOptions(), parentHook?.state);
+
+      const presenceHook = maybeGetPresence(this.el);
+
+      if (presenceHook) {
+        // If we are placed inside a Presence component, we want
+        // to delegate mounting/unmounting to the Presence hook
+        const display = this.el.style.display;
+        this.el.style.display = 'none';
+
+        presenceHook.addMount(() => {
+          if (this.state) {
+            presenceHook.addCleanup(this.state.mount(this.el));
+            this.el.style.display = display;
+            this.maybeAnimate();
+          }
+        });
+      } else {
         this.cleanup = this.state.mount(this.el);
         this.maybeAnimate();
-      },
-      destroyed() {
-        // unregister event handlers
-        if (this.eventHandlers) {
-          Object.entries(this.eventHandlers).forEach(([e, fn]) =>
-            this.el.removeEventListener(e, fn),
-          );
-        }
+      }
+    },
+    destroyed() {
+      // unregister event handlers
+      if (this.eventHandlers) {
+        Object.entries(this.eventHandlers).forEach(([e, fn]) => this.el.removeEventListener(e, fn));
+      }
 
-        motionHooks.delete(this.el);
-        this.cleanup?.();
-      },
-      updated() {
-        this.maybeAnimate();
-      },
-    } as LiveMotionHook,
-  };
+      parentHooks.delete(this.el);
+      motionHooks.delete(this.el);
+
+      this.cleanup?.();
+    },
+    updated() {
+      this.maybeAnimate();
+    },
+  } as LiveMotionHook;
 }
 
 function handleMotionUpdates(from: HTMLElement, to: HTMLElement) {
@@ -159,6 +286,7 @@ export function createLiveMotion() {
   window.addEventListener('live_motion:hide', (e) => {
     const { target } = e as LiveMotionHideEvent;
     const motion = motionHooks.get(target);
+    const presence = maybeGetPresence(target);
 
     if (!motion && liveSocket.isDebugEnabled()) {
       console.warn(
@@ -166,22 +294,18 @@ export function createLiveMotion() {
       );
     }
 
-    if (motion) {
+    if (!presence && motion) {
       const duration = getDuration(motion.getConfig()?.transition);
 
       // We need to call the LiveSocket transition so that LiveView
       // will wait until the transition is finished before removing
       // the element from the DOM.
       liveSocket.transition(duration, () => {
-        const motion = motionHooks.get(target);
+        motion.el.addEventListener('motioncomplete', () => (motion.el.style.display = 'none'), {
+          once: true,
+        });
 
-        if (motion) {
-          motion.el.addEventListener('motioncomplete', () => (motion.el.style.display = 'none'), {
-            once: true,
-          });
-
-          motion.state?.setActive('exit', true);
-        }
+        motion.state?.setActive('exit', true);
       });
     }
   });
@@ -224,7 +348,10 @@ export function createLiveMotion() {
   });
 
   return {
-    hook: createMotionHook(),
+    hooks: {
+      Motion: createMotionHook(),
+      Presence: createPresenceHook(),
+    },
     handleMotionUpdates,
   };
 }
@@ -249,8 +376,4 @@ function getDuration(transition?: LiveMotionConfig['transition']) {
     : typeof transition?.duration !== 'undefined'
     ? transition.duration * 1000
     : DEFAULT_TRANSITION_DURATION;
-}
-
-function getMotionConfig(el: HTMLElement) {
-  return el.dataset.motion ? (JSON.parse(el.dataset.motion) as LiveMotionConfig) : undefined;
 }

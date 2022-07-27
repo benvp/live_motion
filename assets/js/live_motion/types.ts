@@ -80,6 +80,26 @@ export type LiveMotionHook = LiveMotionType &
   Pick<LiveViewHookType, 'el' | 'mounted' | 'destroyed' | 'updated'> &
   ThisType<LiveMotionType & LiveViewHookType>;
 
+export type PresenceConfig = {
+  exitBeforeEnter?: boolean;
+};
+
+export type PresenceType = {
+  exiting: boolean;
+  mounts: (() => void)[];
+  unmounts: (() => void)[];
+  exitTransition: (exitEl: Element, done: () => void) => void;
+  mountComponents(): void;
+  getConfig(): PresenceConfig | undefined;
+  addMount: (fn: any) => void;
+  // TODO: maybe remove
+  addCleanup: (fn: any) => void;
+};
+
+export type PresenceHook = PresenceType &
+  Pick<LiveViewHookType, 'el' | 'mounted' | 'destroyed' | 'updated'> &
+  ThisType<PresenceType & LiveViewHookType>;
+
 export interface LiveMotionEvent<T = unknown> extends Event {
   readonly detail?: T;
   target: HTMLElement;

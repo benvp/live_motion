@@ -202,9 +202,9 @@ defmodule LiveMotion do
         :initial,
         :exit,
         :hover,
+        :press,
         :in_view,
         :in_view_options,
-        :press,
         :defer,
         :on_motion_start,
         :on_motion_complete
@@ -261,6 +261,14 @@ defmodule LiveMotion do
       {@rest}
     >
       <%= if assigns[:inner_block], do: render_slot(@inner_block) %>
+    </div>
+    """
+  end
+
+  def presence(assigns) do
+    ~H"""
+    <div id={@id} phx-hook="Presence">
+      <%= render_slot(@inner_block) %>
     </div>
     """
   end
