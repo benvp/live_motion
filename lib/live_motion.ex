@@ -265,6 +265,17 @@ defmodule LiveMotion do
     """
   end
 
+  @doc ~S'''
+  Tracks presence of a single `LiveMotion.motion` child.
+
+  Enables proper transitioning from one object to another without the need for
+  absolute positioning. Waits for the exiting element to exit before animating
+  the next element in. Every `LiveMotion.motion` child needs to have an `id`.
+
+  ## Props
+
+  - `id`: *Required*. A unique dom element id for the component.
+  '''
   def presence(assigns) do
     ~H"""
     <div id={@id} phx-hook="Presence">

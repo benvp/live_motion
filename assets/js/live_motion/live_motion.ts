@@ -10,7 +10,6 @@ import {
   LiveMotionShowEvent,
   LiveMotionToggleEvent,
   MaybeAnimateOptions,
-  PresenceConfig,
   PresenceHook,
 } from './types';
 
@@ -45,21 +44,14 @@ function createPresenceHook() {
     }
   });
 
-  /**
-   * 1. Mount hook receives new element
-   * 2. Presence needs to check if it already has any mounted element
-   * 3. If yes, the new mount animation needs to be deferred until exit completes
-   * 4. When exit completes, call mount animation
-   */
   const Presence = {
     mountComponents() {
       this.mounts.forEach((fn) => fn());
       this.mounts = [];
     },
-    getConfig() {
-      return this.el.dataset.motion
-        ? (JSON.parse(this.el.dataset.motion) as PresenceConfig)
-        : undefined;
+    cleanup() {
+      this.mounts.forEach((fn) => fn());
+      this.mounts = [];
     },
     exitTransition(exitEl: Element, done) {
       const motion = motionHooks.get(exitEl);
@@ -67,14 +59,13 @@ function createPresenceHook() {
       if (motion) {
         const duration = getDuration(motion.getConfig()?.transition);
 
-        liveSocket.transition(duration, () => {
+        liveSocket.transition(duration + 50, () => {
           motion.el.addEventListener(
             'motioncomplete',
             () => {
               motion.el.style.display = 'none';
               this.exiting = false;
-              this.unmounts.forEach((fn) => fn());
-              this.unmounts = [];
+              this.cleanup();
               done?.();
             },
             {
@@ -107,6 +98,7 @@ function createPresenceHook() {
       presenceHooks.set(this.el, this);
     },
     destroyed() {
+      this.cleanup();
       presenceHooks.delete(this.el);
     },
   } as PresenceHook;
