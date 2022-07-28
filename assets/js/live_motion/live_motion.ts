@@ -1,4 +1,5 @@
 import { animate, createMotionState, spring, mountedStates, glide } from 'motion';
+import { withoutEmptyValues } from './helpers';
 import {
   LiveMotionAnimateEvent,
   LiveMotionConfig,
@@ -181,7 +182,7 @@ function createMotionHook(): LiveMotionHook {
         ? { ...config.transition, easing: translateEasing() }
         : config.transition;
 
-      return {
+      const options: LiveMotionOptions = {
         initial: config.initial,
         animate: config.animate,
         exit: config.exit,
@@ -191,6 +192,10 @@ function createMotionHook(): LiveMotionHook {
         inViewOptions: config.in_view_options,
         transition,
       };
+
+      // Filter out empty objects as this might  lead to undesired behaviour.
+      // (e.g. empty inView options will break `defer`)
+      return withoutEmptyValues(options) as LiveMotionOptions;
     },
     maybeAnimate(options: MaybeAnimateOptions) {
       const { force = false } = options || {};
