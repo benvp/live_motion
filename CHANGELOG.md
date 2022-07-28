@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Support for `glide` animations.
 - Use provided `duration` as a hint when using `spring` or `glide` easing functions.
 - Add `hover`, `press`, `in_view`, `in_view_options` props.
+- Add `LiveMotion.presence` function component for transitioning between elements.
 
 ### Improvements
 
