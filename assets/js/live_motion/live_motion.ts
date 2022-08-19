@@ -1,4 +1,5 @@
-import { animate, createMotionState, spring, mountedStates, glide } from 'motion';
+import { createMotionState, spring, glide } from 'motion';
+import { compactObj } from './helpers';
 import {
   LiveMotionAnimateEvent,
   LiveMotionConfig,
@@ -29,7 +30,6 @@ function createMotionHook(): LiveMotionHooksDefinition {
       },
     };
 
-    console.log(config);
     if (config?.on_motion_start) {
       this.el.addEventListener('motionstart', this.eventHandlers['motionstart']);
     }
@@ -79,7 +79,7 @@ function createMotionHook(): LiveMotionHooksDefinition {
           ? { ...config.transition, easing: translateEasing() }
           : config.transition;
 
-        return {
+        const options = {
           initial: config.initial,
           animate: config.animate,
           exit: config.exit,
@@ -89,6 +89,8 @@ function createMotionHook(): LiveMotionHooksDefinition {
           inViewOptions: config.in_view_options,
           transition,
         };
+
+        return compactObj(options);
       },
       maybeAnimate(options: MaybeAnimateOptions) {
         const { force = false } = options || {};

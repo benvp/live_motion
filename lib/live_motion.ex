@@ -223,14 +223,14 @@ defmodule LiveMotion do
 
     assigns =
       assigns
-      |> assign_new(:initial, fn -> [] end)
+      |> assign_new(:initial, fn -> nil end)
       |> assign_new(:animate, fn -> [] end)
-      |> assign_new(:transition, fn -> [] end)
-      |> assign_new(:exit, fn -> [] end)
-      |> assign_new(:hover, fn -> [] end)
-      |> assign_new(:press, fn -> [] end)
-      |> assign_new(:in_view, fn -> [] end)
-      |> assign_new(:in_view_options, fn -> [] end)
+      |> assign_new(:transition, fn -> nil end)
+      |> assign_new(:exit, fn -> nil end)
+      |> assign_new(:hover, fn -> nil end)
+      |> assign_new(:press, fn -> nil end)
+      |> assign_new(:in_view, fn -> nil end)
+      |> assign_new(:in_view_options, fn -> nil end)
       |> assign_new(:defer, fn -> false end)
       |> assign_new(:on_motion_start, fn -> nil end)
       |> assign_new(:on_motion_complete, fn -> nil end)

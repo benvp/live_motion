@@ -6,21 +6,22 @@ defmodule LiveMotion.Motion do
 
   alias LiveMotion.Motion
 
-  defstruct initial: %{},
+  defstruct initial: nil,
             animate: %{},
-            transition: %{},
-            exit: %{},
-            hover: %{},
-            press: %{},
-            in_view: %{},
-            in_view_options: %{},
+            transition: nil,
+            exit: nil,
+            hover: nil,
+            press: nil,
+            in_view: nil,
+            in_view_options: nil,
             defer: false,
             on_motion_start: nil,
             on_motion_complete: nil
 
   def new(options) do
     %Motion{
-      initial: to_map(options[:initial]),
+      initial:
+        if(is_boolean(options[:initial]), do: options[:initial], else: to_map(options[:initial])),
       animate: to_map(options[:animate]),
       transition: to_map(options[:transition]),
       exit: to_map(options[:exit]),
@@ -66,6 +67,8 @@ defmodule LiveMotion.Motion do
   end
 
   defp maybe_create_event(event), do: event
+
+  defp to_map(nil), do: nil
 
   defp to_map(kw) do
     for {k, v} <- kw, reduce: %{} do

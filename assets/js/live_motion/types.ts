@@ -1,13 +1,5 @@
 import { AnimationOptionsWithOverrides, MotionKeyframesDefinition, spring } from '@motionone/dom';
-import {
-  Easing,
-  EasingFunction,
-  EasingGenerator,
-  glide,
-  MotionState,
-  VariantDefinition,
-  Options as MotionOptions,
-} from 'motion';
+import { Easing, glide, MotionState, VariantDefinition, Options as MotionOptions } from 'motion';
 
 export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
@@ -26,7 +18,6 @@ type LiveMotionEasingOptions =
   | 'glide'
   | { spring?: LiveMotionSpringOptions; glide?: LiveMotionGlideOptions };
 
-// TODO: check if can be removed or if we can get away someway else
 export type LiveMotionAnimationOptions = AnimationOptionsWithOverrides & {
   easing?: Easing | Easing[] | 'spring' | LiveMotionEasingOptions;
 };
@@ -39,8 +30,8 @@ export type LiveMotionConfig = Omit<
   LiveMotionOptions,
   'transition' | 'inView' | 'inViewOptions'
 > & {
-  in_view: MotionOptions['inView'];
-  in_view_options: MotionOptions['inViewOptions'];
+  in_view?: MotionOptions['inView'];
+  in_view_options?: MotionOptions['inViewOptions'];
   transition?: LiveMotionAnimationOptions;
   defer?: boolean;
   on_motion_start?: LiveViewJSDefinition;
