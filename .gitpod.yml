@@ -3,11 +3,11 @@ image:
   file: .gitpod.Dockerfile
 
 additionalRepositories:
-  - url: https://github.com/benvp/live_motion_examples
+  - url: https://github.com/benvp/live_motion_examples#develop
     checkoutLocation: examples
 
 tasks:
-  - name: backend
+  - name: examples
     before: |
       cd ../examples
     init: |
