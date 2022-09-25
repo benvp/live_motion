@@ -1,0 +1,34 @@
+
+image:
+  file: .gitpod.Dockerfile
+
+additionalRepositories:
+  - url: https://github.com/benvp/live_motion_examples
+    checkoutLocation: examples
+
+tasks:
+  - name: backend
+    before: |
+      cd ../examples
+    init: |
+      mix setup
+      mix compile
+    command: |
+      iex -S mix phx.server
+
+  - name: "live_motion dev server"
+    init: |
+      mix setup
+      mix compile
+    command: mix assets.watch
+
+ports:
+  - port: 4000
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - elixir-lsp.elixir-ls
+    - bradlc.vscode-tailwindcss
+    - dbaeumer.vscode-eslint
+    - benvp.vscode-hex-pm-intellisense
