@@ -15,12 +15,7 @@ RUN brew install asdf \
     && asdf plugin add erlang \
     && asdf plugin add elixir \
     && asdf plugin add nodejs \
-    && asdf install erlang 25.0.4 \
-    && asdf global erlang 25.0.4 \
-    && asdf install elixir 1.14.0-otp-25 \
-    && asdf global elixir 1.14.0-otp-25 \
-    && asdf install nodejs 16.17.0 \
-    && asdf global nodejs 16.17.0 \
+    && asdf install \
     && bash -c ". $(brew --prefix asdf)/libexec/asdf.sh \
         && mix local.hex --force \
         && mix local.rebar --force" \
