@@ -2,6 +2,8 @@
 image:
   file: .gitpod.Dockerfile
 
+workspaceLocation: live_motion/gitpod-ws.code-workspace
+
 additionalRepositories:
   - url: https://github.com/benvp/live_motion_examples#develop
     checkoutLocation: examples
