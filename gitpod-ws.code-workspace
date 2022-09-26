@@ -1,6 +1,6 @@
 {
   "folders": [
-    { "path": "live_motion" },
-    { "path": "examples" }
+    { "path": "." },
+    { "path": "../examples" }
   ]
 }
