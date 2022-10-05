@@ -18,5 +18,8 @@
         }
       }
     ]
+  },
+  "settings": {
+    "task.allowAutomaticTasks": "on"
   }
 }
