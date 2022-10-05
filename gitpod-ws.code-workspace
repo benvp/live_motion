@@ -1,6 +1,22 @@
 {
-  "folders": [
-    { "path": "." },
-    { "path": "../examples" }
-  ]
+  "folders": [{ "path": "." }, { "path": "../examples" }],
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Gitpod: Install ElixirLS extension",
+        "type": "shell",
+        "command": "./gitpod/install_extensions.sh",
+        "group": "none",
+        "presentation": {
+          "reveal": "silent",
+          "panel": "new",
+          "close": true
+        },
+        "runOptions": {
+          "runOn": "folderOpen"
+        }
+      }
+    ]
+  }
 }
