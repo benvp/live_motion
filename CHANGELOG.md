@@ -6,11 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+- Support for LiveView 0.18. The minimum required version is LiveView 0.18 now.
 - Remove possibility to animate non LiveMotion components.
-- Rename event props to `on_motion_start` and `on_motion_complete`.
+- Rename event props to `on_motion_start` and `on_motion_complete` to be more compliant with
+other motion implementations.
 
 ### New Features
 
+- The `motion` component now uses `dynamic_tag` from LiveView. This allows you to change the
+rendered HTML element.
+- The `motion` component can be be self-closing (`<LiveMotion.motion />`).
 - Support for `glide` animations.
 - Use provided `duration` as a hint when using `spring` or `glide` easing functions.
 - Add `hover`, `press`, `in_view`, `in_view_options` props.
@@ -18,6 +23,7 @@ All notable changes to this project will be documented in this file.
 ### Improvements
 
 - Use `createMotionState` for handling of the animation states.
+- Update `motion` to `10.14.2`.
 
 ## [v0.2.0] (2022-05-18)
 

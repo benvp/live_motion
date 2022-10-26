@@ -23,9 +23,9 @@ defmodule LiveMotion do
 
       def render(assigns) do
         ~H"""
-        <LiveMotion.motion id="popcorn" animate={[rotate: 360]}>
+        <.motion id="popcorn" animate={[rotate: 360]}>
           <span>🍿</span>
-        </LiveMotion.motion>
+        </.motion>
         """
       end
 
@@ -39,14 +39,14 @@ defmodule LiveMotion do
       def render(assigns) do
         ~H"""
         <div>
-          <LiveMotion.motion
+          <.motion
             id="popcorn"
             initial={[opacity: 0]}
             animate={[opacity: 1]}
             exit={[opacity: 0]}
           >
             <span>🍿</span>
-          </LiveMotion.motion>
+          </.motion>
 
           <button phx-click={LiveMotion.JS.toggle(to: "#popcorn")}>
             Toggle me
@@ -57,6 +57,12 @@ defmodule LiveMotion do
 
   This will toggle the opacity from the `#popcorn` element. See `LiveMotion.JS` for more
   information on how to manually trigger animations.
+
+  > #### Tip {: .tip}
+  >
+  > You can call `import LiveMotion` at the beginning for your file
+  > so that you don't have to call the component using the full module name (`LiveMotion.motion`).
+
 
   ## Limitations
 
@@ -87,37 +93,6 @@ defmodule LiveMotion do
   > As LiveMotion uses Motion One to perform the animations, keyframes and transition
   > options will be passed directly to Motion One. For a more complete reference,
   > have a look at their documentation of the [animate function](https://motion.dev/dom/animate).
-
-  ## Props
-
-  - `id`: *Required*. A unique dom element id for the component.
-
-  - `initial`: Defines the initial style for the component. Useful when using mount transitions
-  and you want the component to have an initial state to animate to. Accepts a `keyframe`
-  keyword list.
-
-    If set to `false` it will directly apply the styles defined in the `animate` prop and skip the
-    animation.
-
-  - `animate`: Defines the target animation style. Accepts a `keyframe` keyword list.
-
-  - `transition`: Additional options to specify the behaviour of the animation. These are things
-  like the easing function, duration and delay.
-
-  - `exit`: The target animation to animate to when the component is unmounted. Accepts
-  the same options as `animate` does.
-
-  - `defer`: If set, will defer the animation until it's somehow manually triggered. Use
-  in combination with `LiveMotion.JS.show/1`.
-
-  - `on_motion_start`: Lifecycle event when the animation starts. If given a string, then the
-  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
-  function.
-
-  - `on_motion_complete`: Lifecycle event when the animation has completed. If given a string, then the
-  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
-  function.
-
 
   ## Keyframe
 
@@ -194,22 +169,76 @@ defmodule LiveMotion do
   > Please note that the `duration` itself does not have any effect on the actual
   > length of `spring` or `glide` animations.
   '''
-  def motion(assigns) do
-    rest =
-      assigns_to_attributes(assigns, [
-        :animate,
-        :transition,
-        :initial,
-        :exit,
-        :hover,
-        :in_view,
-        :in_view_options,
-        :press,
-        :defer,
-        :on_motion_start,
-        :on_motion_complete
-      ])
 
+  attr :id, :string, required: true, doc: "A unique dom element id for the component."
+
+  attr :initial, :list,
+    default: nil,
+    doc: """
+      Defines the initial style for the component. Useful when using mount transitions
+      and you want the component to have an initial state to animate to. Accepts a `keyframe`
+      keyword list.
+
+      If set to `false` it will directly apply the styles defined in the `animate` prop and skip the
+      animation.
+    """
+
+  attr :animate, :list,
+    default: nil,
+    doc: "Defines the target animation style. Accepts a `keyframe` keyword list."
+
+  attr :transition, :list,
+    default: nil,
+    doc: "Additional options to specify the behaviour of the animation. These are things
+  like the easing function, duration and delay."
+
+  attr :exit, :list,
+    default: nil,
+    doc: "The target animation to animate to when the component is unmounted. Accepts
+  the same options as `animate` does."
+
+  attr :hover, :list,
+    default: nil,
+    doc: "Animate the element on mouse hover. Accepts a `keyframe` keyword list."
+
+  attr :press, :list,
+    default: nil,
+    doc: "Animate the element when pressed. Accepts a `keyframe` keyword list."
+
+  attr :in_view, :list,
+    default: nil,
+    doc: "Animate the element when it appears in the viewport. Accepts a `keyframe` keyword list."
+
+  attr :in_view_options, :list,
+    default: nil,
+    doc:
+      "Options for `in_view` attr. Pass as keyword list. For a list of available options, see [inView Options on motion.dev](https://motion.dev/dom/in-view#options)"
+
+  attr :defer, :boolean,
+    default: false,
+    doc: "If set, will defer the animation until it's somehow manually triggered. Use
+  in combination with `LiveMotion.JS.show/1`."
+
+  attr :on_motion_start, :any,
+    default: nil,
+    doc: "Lifecycle event when the animation starts. If given a string, then the
+  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
+  function."
+
+  attr :on_motion_complete, :any,
+    default: nil,
+    doc: "Lifecycle event when the animation has completed. If given a string, then the
+  event will be sent to the LiveView. You can also call a `LiveMotion.JS` or `Phoenix.LiveView.JS`
+  function."
+
+  attr :as, :string, default: "div", doc: "The tag element to render. Defaults to `div`."
+
+  attr :rest, :global,
+    doc: " Additional HTML attributes to add to the tag, ensuring proper escaping."
+
+  slot :inner_block, default: nil
+
+  def motion(assigns) do
     initial =
       case assigns[:initial] do
         nil ->
@@ -221,25 +250,12 @@ defmodule LiveMotion do
           |> LiveMotion.Style.to_style_string()
       end
 
-    assigns =
-      assigns
-      |> assign_new(:initial, fn -> nil end)
-      |> assign_new(:animate, fn -> [] end)
-      |> assign_new(:transition, fn -> nil end)
-      |> assign_new(:exit, fn -> nil end)
-      |> assign_new(:hover, fn -> nil end)
-      |> assign_new(:press, fn -> nil end)
-      |> assign_new(:in_view, fn -> nil end)
-      |> assign_new(:in_view_options, fn -> nil end)
-      |> assign_new(:defer, fn -> false end)
-      |> assign_new(:on_motion_start, fn -> nil end)
-      |> assign_new(:on_motion_complete, fn -> nil end)
-      |> assign(:style, initial)
-      |> assign(:rest, rest)
+    assigns = assign(assigns, :style, initial)
 
     ~H"""
-    <div
+    <.dynamic_tag
       id={@id}
+      name={@as}
       phx-hook="Motion"
       data-motion={
         Motion.new(
@@ -260,8 +276,8 @@ defmodule LiveMotion do
       style={@style}
       {@rest}
     >
-      <%= if assigns[:inner_block], do: render_slot(@inner_block) %>
-    </div>
+      <%= render_slot(@inner_block) %>
+    </.dynamic_tag>
     """
   end
 end

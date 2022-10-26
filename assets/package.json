@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "motion": "^10.13.1"
+    "motion": "^10.14.2"
   },
   "devDependencies": {
     "phoenix_live_view": "file:../deps/phoenix_live_view",
