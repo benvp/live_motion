@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.3.0]
+## [v0.3.0] (2022-10-26)
 
 ### Breaking changes
 
