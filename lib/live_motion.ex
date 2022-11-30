@@ -69,14 +69,12 @@ defmodule LiveMotion do
   LiveMotion is still in the early days, so breaking changes are expected. Additionally, there
   are still a few limitations, which will be added in future releases.
 
-  - `LiveMotion.motion` always renders as a `div` element. There are plans on providing
-  an api to support rendering any HTML element.
-  - Currently standard easing functions (e.g. `ease-in-out`, bezier curves) and spring
-  animations are supported. Due to the nature of spring animations, they do not have
+  - Currently standard easing functions (e.g. `ease-in-out`, bezier curves), spring, and glide
+  animations are supported. Due to the nature of spring and glide animations, they do not have
   a fixed duration (theoretically they can run indefinetely). When using unmount transition,
   this adds a challenge, as we do not know how long Phoenix LiveView should defer the actual
   removal of the DOM node. For now, we fall back to the maximum supported duration of ten seconds.
-  - Support Stagger and glide animations will be added in a later release.
+  - Stagger animations will be added in a later release.
   - Layout animations are not yet supported. Think of animations which automatically move
   items in the correct place after an element is removed which affects the layout.
   '''
