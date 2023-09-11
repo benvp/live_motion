@@ -477,6 +477,36 @@ var require_tslib = __commonJS({
   }
 });
 
+// node_modules/@motionone/types/dist/MotionValue.es.js
+var MotionValue = class {
+  setAnimation(animation) {
+    this.animation = animation;
+    animation === null || animation === void 0 ? void 0 : animation.finished.then(() => this.clearAnimation()).catch(() => {
+    });
+  }
+  clearAnimation() {
+    this.animation = this.generator = void 0;
+  }
+};
+
+// node_modules/@motionone/dom/dist/animate/data.es.js
+var data = new WeakMap();
+function getAnimationData(element) {
+  if (!data.has(element)) {
+    data.set(element, {
+      transforms: [],
+      values: new Map()
+    });
+  }
+  return data.get(element);
+}
+function getMotionValue(motionValues, name) {
+  if (!motionValues.has(name)) {
+    motionValues.set(name, new MotionValue());
+  }
+  return motionValues.get(name);
+}
+
 // node_modules/@motionone/utils/dist/array.es.js
 function addUniqueItem(array, item) {
   array.indexOf(item) === -1 && array.push(item);
@@ -567,9 +597,6 @@ var isEasingGenerator = (easing) => typeof easing === "object" && Boolean(easing
 // node_modules/@motionone/utils/dist/is-function.es.js
 var isFunction = (value) => typeof value === "function";
 
-// node_modules/@motionone/utils/dist/is-string.es.js
-var isString = (value) => typeof value === "string";
-
 // node_modules/@motionone/utils/dist/time.es.js
 var time = {
   ms: (seconds) => seconds * 1e3,
@@ -579,6 +606,74 @@ var time = {
 // node_modules/@motionone/utils/dist/velocity.es.js
 function velocityPerSecond(velocity, frameDuration) {
   return frameDuration ? velocity * (1e3 / frameDuration) : 0;
+}
+
+// node_modules/@motionone/dom/dist/animate/utils/transforms.es.js
+var axes = ["", "X", "Y", "Z"];
+var order = ["translate", "scale", "rotate", "skew"];
+var transformAlias = {
+  x: "translateX",
+  y: "translateY",
+  z: "translateZ"
+};
+var rotation = {
+  syntax: "<angle>",
+  initialValue: "0deg",
+  toDefaultUnit: (v) => v + "deg"
+};
+var baseTransformProperties = {
+  translate: {
+    syntax: "<length-percentage>",
+    initialValue: "0px",
+    toDefaultUnit: (v) => v + "px"
+  },
+  rotate: rotation,
+  scale: {
+    syntax: "<number>",
+    initialValue: 1,
+    toDefaultUnit: noopReturn
+  },
+  skew: rotation
+};
+var transformDefinitions = new Map();
+var asTransformCssVar = (name) => `--motion-${name}`;
+var transforms = ["x", "y", "z"];
+order.forEach((name) => {
+  axes.forEach((axis) => {
+    transforms.push(name + axis);
+    transformDefinitions.set(asTransformCssVar(name + axis), baseTransformProperties[name]);
+  });
+});
+var compareTransformOrder = (a, b) => transforms.indexOf(a) - transforms.indexOf(b);
+var transformLookup = new Set(transforms);
+var isTransform = (name) => transformLookup.has(name);
+var addTransformToElement = (element, name) => {
+  if (transformAlias[name])
+    name = transformAlias[name];
+  const { transforms: transforms2 } = getAnimationData(element);
+  addUniqueItem(transforms2, name);
+  element.style.transform = buildTransformTemplate(transforms2);
+};
+var buildTransformTemplate = (transforms2) => transforms2.sort(compareTransformOrder).reduce(transformListToString, "").trim();
+var transformListToString = (template, name) => `${template} ${name}(var(${asTransformCssVar(name)}))`;
+
+// node_modules/@motionone/dom/dist/animate/utils/css-var.es.js
+var isCssVar = (name) => name.startsWith("--");
+var registeredProperties = new Set();
+function registerCssVariable(name) {
+  if (registeredProperties.has(name))
+    return;
+  registeredProperties.add(name);
+  try {
+    const { syntax, initialValue } = transformDefinitions.has(name) ? transformDefinitions.get(name) : {};
+    CSS.registerProperty({
+      name,
+      inherits: false,
+      syntax,
+      initialValue
+    });
+  } catch (e) {
+  }
 }
 
 // node_modules/@motionone/easing/dist/cubic-bezier.es.js
@@ -626,7 +721,7 @@ var functionArgsRegex = /\((.*?)\)/;
 function getEasingFunction(definition) {
   if (isFunction(definition))
     return definition;
-  if (isCubicBezier(definition))
+  if (Array.isArray(definition))
     return cubicBezier(...definition);
   if (namedEasings[definition])
     return namedEasings[definition];
@@ -658,10 +753,12 @@ var Animation = class {
     });
     easing = easing || defaults.easing;
     if (isEasingGenerator(easing)) {
-      const custom = easing.createAnimation(keyframes);
+      const custom = easing.createAnimation(keyframes, () => "0", true);
       easing = custom.easing;
-      keyframes = custom.keyframes || keyframes;
-      initialDuration = custom.duration || initialDuration;
+      if (custom.keyframes !== void 0)
+        keyframes = custom.keyframes;
+      if (custom.duration !== void 0)
+        initialDuration = custom.duration;
     }
     this.repeat = repeat;
     this.easing = isEasingList(easing) ? noopReturn : getEasingFunction(easing);
@@ -764,104 +861,6 @@ var Animation = class {
     this.rate = rate;
   }
 };
-
-// node_modules/@motionone/types/dist/MotionValue.es.js
-var MotionValue = class {
-  setAnimation(animation) {
-    this.animation = animation;
-    animation === null || animation === void 0 ? void 0 : animation.finished.then(() => this.clearAnimation()).catch(() => {
-    });
-  }
-  clearAnimation() {
-    this.animation = this.generator = void 0;
-  }
-};
-
-// node_modules/@motionone/dom/dist/animate/data.es.js
-var data = new WeakMap();
-function getAnimationData(element) {
-  if (!data.has(element)) {
-    data.set(element, {
-      transforms: [],
-      values: new Map()
-    });
-  }
-  return data.get(element);
-}
-function getMotionValue(motionValues, name) {
-  if (!motionValues.has(name)) {
-    motionValues.set(name, new MotionValue());
-  }
-  return motionValues.get(name);
-}
-
-// node_modules/@motionone/dom/dist/animate/utils/transforms.es.js
-var axes = ["", "X", "Y", "Z"];
-var order = ["translate", "scale", "rotate", "skew"];
-var transformAlias = {
-  x: "translateX",
-  y: "translateY",
-  z: "translateZ"
-};
-var rotation = {
-  syntax: "<angle>",
-  initialValue: "0deg",
-  toDefaultUnit: (v) => v + "deg"
-};
-var baseTransformProperties = {
-  translate: {
-    syntax: "<length-percentage>",
-    initialValue: "0px",
-    toDefaultUnit: (v) => v + "px"
-  },
-  rotate: rotation,
-  scale: {
-    syntax: "<number>",
-    initialValue: 1,
-    toDefaultUnit: noopReturn
-  },
-  skew: rotation
-};
-var transformDefinitions = new Map();
-var asTransformCssVar = (name) => `--motion-${name}`;
-var transforms = ["x", "y", "z"];
-order.forEach((name) => {
-  axes.forEach((axis) => {
-    transforms.push(name + axis);
-    transformDefinitions.set(asTransformCssVar(name + axis), baseTransformProperties[name]);
-  });
-});
-var compareTransformOrder = (a, b) => transforms.indexOf(a) - transforms.indexOf(b);
-var transformLookup = new Set(transforms);
-var isTransform = (name) => transformLookup.has(name);
-var addTransformToElement = (element, name) => {
-  if (transformAlias[name])
-    name = transformAlias[name];
-  const { transforms: transforms2 } = getAnimationData(element);
-  addUniqueItem(transforms2, name);
-  element.style.transform = buildTransformTemplate(transforms2);
-};
-var buildTransformTemplate = (transforms2) => transforms2.sort(compareTransformOrder).reduce(transformListToString, "").trim();
-var transformListToString = (template, name) => `${template} ${name}(var(${asTransformCssVar(name)}))`;
-
-// node_modules/@motionone/dom/dist/animate/utils/css-var.es.js
-var isCssVar = (name) => name.startsWith("--");
-var registeredProperties = new Set();
-function registerCssVariable(name) {
-  if (registeredProperties.has(name))
-    return;
-  registeredProperties.add(name);
-  try {
-    const { syntax, initialValue } = transformDefinitions.has(name) ? transformDefinitions.get(name) : {};
-    CSS.registerProperty({
-      name,
-      inherits: false,
-      syntax,
-      initialValue
-    });
-  } catch (e) {
-  }
-}
 
 // node_modules/@motionone/dom/dist/animate/utils/feature-detection.es.js
 var testAnimation = (keyframes, options) => document.createElement("div").animate(keyframes, options);
@@ -970,24 +969,11 @@ function stopAnimation(animation, needsCommit = true) {
   }
 }
 
-// node_modules/@motionone/dom/dist/animate/utils/get-unit.es.js
-function getUnitConverter(keyframes, definition) {
-  var _a;
-  let toUnit = (definition === null || definition === void 0 ? void 0 : definition.toDefaultUnit) || noopReturn;
-  const finalKeyframe = keyframes[keyframes.length - 1];
-  if (isString(finalKeyframe)) {
-    const unit = ((_a = finalKeyframe.match(/(-?[\d.]+)([a-z%]*)/)) === null || _a === void 0 ? void 0 : _a[2]) || "";
-    if (unit)
-      toUnit = (value) => value + unit;
-  }
-  return toUnit;
-}
-
 // node_modules/@motionone/dom/dist/animate/animate-style.es.js
 function getDevToolsRecord() {
   return window.__MOTION_DEV_TOOLS_RECORD;
 }
-function animateStyle(element, key, keyframesDefinition, options = {}, AnimationPolyfill) {
+function animateStyle(element, key, keyframesDefinition, options = {}) {
   const record = getDevToolsRecord();
   const isRecording = options.record !== false && record;
   let animation;
@@ -1006,12 +992,13 @@ function animateStyle(element, key, keyframesDefinition, options = {}, Animation
       return (_b = (_a = style.get(element, name)) !== null && _a !== void 0 ? _a : definition === null || definition === void 0 ? void 0 : definition.initialValue) !== null && _b !== void 0 ? _b : 0;
     };
     let keyframes = hydrateKeyframes(keyframesList(keyframesDefinition), readInitialValue);
-    const toUnit = getUnitConverter(keyframes, definition);
     if (isEasingGenerator(easing)) {
-      const custom = easing.createAnimation(keyframes, key !== "opacity", readInitialValue, name, motionValue);
+      const custom = easing.createAnimation(keyframes, readInitialValue, valueIsTransform, name, motionValue);
       easing = custom.easing;
-      keyframes = custom.keyframes || keyframes;
-      duration = custom.duration || duration;
+      if (custom.keyframes !== void 0)
+        keyframes = custom.keyframes;
+      if (custom.duration !== void 0)
+        duration = custom.duration;
     }
     if (isCssVar(name)) {
       if (supports.cssRegisterProperty()) {
@@ -1057,14 +1044,17 @@ function animateStyle(element, key, keyframesDefinition, options = {}, Animation
       }).catch(noop);
       if (!allowWebkitAcceleration)
         animation.playbackRate = 1.000001;
-    } else if (AnimationPolyfill && valueIsTransform) {
+    } else if (valueIsTransform) {
       keyframes = keyframes.map((value) => typeof value === "string" ? parseFloat(value) : value);
       if (keyframes.length === 1) {
         keyframes.unshift(parseFloat(readInitialValue()));
       }
-      animation = new AnimationPolyfill((latest) => {
-        style.set(element, name, toUnit ? toUnit(latest) : latest);
-      }, keyframes, Object.assign(Object.assign({}, options), {
+      const render = (latest) => {
+        if (definition)
+          latest = definition.toDefaultUnit(latest);
+        style.set(element, name, latest);
+      };
+      animation = new Animation(render, keyframes, Object.assign(Object.assign({}, options), {
         duration,
         easing
       }));
@@ -1276,14 +1266,14 @@ var glide = ({ from = 0, velocity = 0, power = 0.8, decay = 0.325, bounceDamping
 // node_modules/@motionone/generators/dist/utils/pregenerate-keyframes.es.js
 var timeStep = 10;
 var maxDuration = 1e4;
-function pregenerateKeyframes(generator, toUnit = noopReturn) {
+function pregenerateKeyframes(generator) {
   let overshootDuration = void 0;
   let timestamp = timeStep;
   let state = generator(0);
-  const keyframes = [toUnit(state.current)];
+  const keyframes = [state.current];
   while (!state.done && timestamp < maxDuration) {
     state = generator(timestamp);
-    keyframes.push(toUnit(state.done ? state.target : state.current));
+    keyframes.push(state.done ? state.target : state.current);
     if (overshootDuration === void 0 && state.hasReachedTarget) {
       overshootDuration = timestamp;
     }
@@ -1300,12 +1290,6 @@ function pregenerateKeyframes(generator, toUnit = noopReturn) {
 }
 
 // node_modules/@motionone/dom/dist/easing/create-generator-easing.es.js
-function canGenerate(value) {
-  return isNumber(value) && !isNaN(value);
-}
-function getAsNumber(value) {
-  return isString(value) ? parseFloat(value) : value;
-}
 function createGeneratorEasing(createGenerator) {
   const keyframesCache = new WeakMap();
   return (options = {}) => {
@@ -1323,49 +1307,44 @@ function createGeneratorEasing(createGenerator) {
       }
       return generatorCache.get(key);
     };
-    const getKeyframes = (generator, toUnit) => {
+    const getKeyframes = (generator) => {
       if (!keyframesCache.has(generator)) {
-        keyframesCache.set(generator, pregenerateKeyframes(generator, toUnit));
+        keyframesCache.set(generator, pregenerateKeyframes(generator));
       }
       return keyframesCache.get(generator);
     };
     return {
-      createAnimation: (keyframes, shouldGenerate = true, getOrigin, name, motionValue) => {
+      createAnimation: (keyframes, getOrigin, canUseGenerator, name, motionValue) => {
+        var _a, _b;
         let settings;
-        let origin;
-        let target;
-        let velocity = 0;
-        let toUnit = noopReturn;
         const numKeyframes = keyframes.length;
-        if (shouldGenerate) {
-          toUnit = getUnitConverter(keyframes, name ? transformDefinitions.get(getStyleName(name)) : void 0);
-          const targetDefinition = keyframes[numKeyframes - 1];
-          target = getAsNumber(targetDefinition);
-          if (numKeyframes > 1 && keyframes[0] !== null) {
-            origin = getAsNumber(keyframes[0]);
-          } else {
-            const prevGenerator = motionValue === null || motionValue === void 0 ? void 0 : motionValue.generator;
-            if (prevGenerator) {
-              const { animation, generatorStartTime } = motionValue;
-              const startTime = (animation === null || animation === void 0 ? void 0 : animation.startTime) || generatorStartTime || 0;
-              const currentTime = (animation === null || animation === void 0 ? void 0 : animation.currentTime) || performance.now() - startTime;
-              const prevGeneratorCurrent = prevGenerator(currentTime).current;
-              origin = prevGeneratorCurrent;
+        let shouldUseGenerator = canUseGenerator && numKeyframes <= 2 && keyframes.every(isNumberOrNull);
+        if (shouldUseGenerator) {
+          const target = keyframes[numKeyframes - 1];
+          const unresolvedOrigin = numKeyframes === 1 ? null : keyframes[0];
+          let velocity = 0;
+          let origin = 0;
+          const prevGenerator = motionValue === null || motionValue === void 0 ? void 0 : motionValue.generator;
+          if (prevGenerator) {
+            const { animation, generatorStartTime } = motionValue;
+            const startTime = (animation === null || animation === void 0 ? void 0 : animation.startTime) || generatorStartTime || 0;
+            const currentTime = (animation === null || animation === void 0 ? void 0 : animation.currentTime) || performance.now() - startTime;
+            const prevGeneratorCurrent = prevGenerator(currentTime).current;
+            origin = (_a = unresolvedOrigin) !== null && _a !== void 0 ? _a : prevGeneratorCurrent;
+            if (numKeyframes === 1 || numKeyframes === 2 && keyframes[0] === null) {
               velocity = calcGeneratorVelocity((t) => prevGenerator(t).current, currentTime, prevGeneratorCurrent);
-            } else if (getOrigin) {
-              origin = getAsNumber(getOrigin());
             }
+          } else {
+            origin = (_b = unresolvedOrigin) !== null && _b !== void 0 ? _b : parseFloat(getOrigin());
           }
-        }
-        if (canGenerate(origin) && canGenerate(target)) {
           const generator = getGenerator(origin, target, velocity, name === null || name === void 0 ? void 0 : name.includes("scale"));
-          settings = Object.assign(Object.assign({}, getKeyframes(generator, toUnit)), { easing: "linear" });
+          const keyframesMetadata = getKeyframes(generator);
+          settings = Object.assign(Object.assign({}, keyframesMetadata), { easing: "linear" });
           if (motionValue) {
             motionValue.generator = generator;
             motionValue.generatorStartTime = performance.now();
           }
-        }
-        if (!settings) {
+        } else {
           const keyframesMetadata = getKeyframes(getGenerator(0, 100));
           settings = {
             easing: "ease",
@@ -1377,6 +1356,7 @@ function createGeneratorEasing(createGenerator) {
     };
   };
 }
+var isNumberOrNull = (value) => typeof value !== "string";
 
 // node_modules/@motionone/dom/dist/easing/spring/index.es.js
 var spring2 = createGeneratorEasing(spring);
@@ -1597,7 +1577,7 @@ function createMotionState(options = {}, parent) {
       }
       if (hasChanged(prevTarget[key], target[key])) {
         (_a3 = baseTarget[key]) !== null && _a3 !== void 0 ? _a3 : baseTarget[key] = style.get(element, key);
-        animationFactories.push(animateStyle(element, key, target[key], animationOptions[key], Animation));
+        animationFactories.push(animateStyle(element, key, target[key], animationOptions[key]));
       }
     });
     yield;

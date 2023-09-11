@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.1] (2023-09-11)
+
+### Changes
+
+- Update supported Phoenix versions.
+
 ## [v0.3.0] (2022-10-26)
 
 ### Breaking changes
